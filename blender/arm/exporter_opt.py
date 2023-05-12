@@ -49,12 +49,12 @@ class Vertex:
 
 
 def calc_tangents(posa, nora, uva, ias, scale_pos):
-    num_verts = int(len(posa) / 4)
+    num_verts = len(posa) // 4
     tangents = np.empty(num_verts * 3, dtype='<f4')
     # bitangents = np.empty(num_verts * 3, dtype='<f4')
     for ar in ias:
         ia = ar['values']
-        num_tris = int(len(ia) / 3)
+        num_tris = len(ia) // 3
         for i in range(0, num_tris):
             i0 = ia[i * 3    ]
             i1 = ia[i * 3 + 1]
@@ -71,10 +71,7 @@ def calc_tangents(posa, nora, uva, ias, scale_pos):
             deltaUV1 = uv1 - uv0
             deltaUV2 = uv2 - uv0
             d = (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x)
-            if d != 0:
-                r = 1.0 / d
-            else:
-                r = 1.0
+            r = 1.0 / d if d != 0 else 1.0
             tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r
             # bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r
 
@@ -87,15 +84,15 @@ def calc_tangents(posa, nora, uva, ias, scale_pos):
             tangents[i2 * 3    ] += tangent.x
             tangents[i2 * 3 + 1] += tangent.y
             tangents[i2 * 3 + 2] += tangent.z
-            # bitangents[i0 * 3    ] += bitangent.x
-            # bitangents[i0 * 3 + 1] += bitangent.y
-            # bitangents[i0 * 3 + 2] += bitangent.z
-            # bitangents[i1 * 3    ] += bitangent.x
-            # bitangents[i1 * 3 + 1] += bitangent.y
-            # bitangents[i1 * 3 + 2] += bitangent.z
-            # bitangents[i2 * 3    ] += bitangent.x
-            # bitangents[i2 * 3 + 1] += bitangent.y
-            # bitangents[i2 * 3 + 2] += bitangent.z
+                    # bitangents[i0 * 3    ] += bitangent.x
+                    # bitangents[i0 * 3 + 1] += bitangent.y
+                    # bitangents[i0 * 3 + 2] += bitangent.z
+                    # bitangents[i1 * 3    ] += bitangent.x
+                    # bitangents[i1 * 3 + 1] += bitangent.y
+                    # bitangents[i1 * 3 + 2] += bitangent.z
+                    # bitangents[i2 * 3    ] += bitangent.x
+                    # bitangents[i2 * 3 + 1] += bitangent.y
+                    # bitangents[i2 * 3 + 2] += bitangent.z
     # Orthogonalize
     for i in range(0, num_verts):
         t = Vector((tangents[i * 3], tangents[i * 3 + 1], tangents[i * 3 + 2]))

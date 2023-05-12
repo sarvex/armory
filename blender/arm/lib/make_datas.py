@@ -109,7 +109,6 @@ def parse_shader(
     @param lines The list of lines of the shader file
     @param parse_attributes Whether to parse vertex elements
     """
-    vertex_elements_parsed = False
     vertex_elements_parsing = False
 
     # Stack of the state of all preprocessor conditions for the current
@@ -117,9 +116,7 @@ def parse_shader(
     # condition is false and the line must not be parsed
     stack: list[bool] = []
 
-    if not parse_attributes:
-        vertex_elements_parsed = True
-
+    vertex_elements_parsed = not parse_attributes
     for line in lines:
         line = line.lstrip()
 
@@ -140,25 +137,14 @@ def parse_shader(
             stack.pop()
             continue
 
-        # Skip lines if the stack contains at least one preprocessor
-        # condition that is not fulfilled
-        skip = False
-        for condition in stack:
-            if not condition:
-                skip = True
-                break
+        skip = not all(stack)
         if skip:
             continue
 
         if not vertex_elements_parsed and line.startswith("in "):
             vertex_elements_parsing = True
             s = line.split(" ")
-            con["vertex_elements"].append(
-                {
-                    "data": "float" + s[1][-1:],
-                    "name": s[2][:-1],  # [:1] to get rid of the semicolon
-                }
-            )
+            con["vertex_elements"].append({"data": f"float{s[1][-1:]}", "name": s[2][:-1]})
 
         # Stop the vertex element parsing if no other vertex elements
         # follow directly (assuming all vertex elements are positioned
@@ -181,14 +167,11 @@ def parse_shader(
             if s[1].startswith("layout"):
                 ctype = s[2]
                 cid = s[3]
-                if cid[-1] == ";":
-                    cid = cid[:-1]
             else:
                 ctype = s[1]
                 cid = s[2]
-                if cid[-1] == ";":
-                    cid = cid[:-1]
-
+            if cid[-1] == ";":
+                cid = cid[:-1]
             found = False  # Uniqueness check
             if (
                 ctype.startswith("sampler")
@@ -277,11 +260,10 @@ def make(
 ):
     sres = {"name": base_name, "contexts": []}
     res["shader_datas"].append(sres)
-    asset = assets.shader_passes_assets[base_name]
-
     vert = None
     frag = None
     has_variants = "variants" in json_data and len(json_data["variants"]) > 0
+    asset = assets.shader_passes_assets[base_name]
     if make_variants and has_variants:
         d = json_data["variants"][0]
         if d in defs:
@@ -295,26 +277,10 @@ def make(
                 frag = f.read().split("\n", 1)[1]
                 frag = "#version 450\n#define " + d + "\n" + frag
 
-            with open(
-                arm.utils.get_fp_build()
-                + "/compiled/Shaders/"
-                + base_name
-                + d
-                + ".vert.glsl",
-                "w",
-                encoding="utf-8",
-            ) as f:
+            with open(f"{arm.utils.get_fp_build()}/compiled/Shaders/{base_name}{d}.vert.glsl", "w", encoding="utf-8") as f:
                 f.write(vert)
 
-            with open(
-                arm.utils.get_fp_build()
-                + "/compiled/Shaders/"
-                + base_name
-                + d
-                + ".frag.glsl",
-                "w",
-                encoding="utf-8",
-            ) as f:
+            with open(f"{arm.utils.get_fp_build()}/compiled/Shaders/{base_name}{d}.frag.glsl", "w", encoding="utf-8") as f:
                 f.write(frag)
 
             # Add context variant

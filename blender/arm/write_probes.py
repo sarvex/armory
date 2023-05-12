@@ -30,13 +30,13 @@ __cmft_end_time_seconds = 0.0
 
 
 def add_irr_assets(output_file_irr):
-    assets.add(output_file_irr + '.arm')
+    assets.add(f'{output_file_irr}.arm')
 
 
 def add_rad_assets(output_file_rad, rad_format, num_mips):
-    assets.add(output_file_rad + '.' + rad_format)
+    assets.add(f'{output_file_rad}.{rad_format}')
     for i in range(0, num_mips):
-        assets.add(output_file_rad + '_' + str(i) + '.' + rad_format)
+        assets.add(f'{output_file_rad}_{str(i)}.{rad_format}')
 
 
 @contextmanager

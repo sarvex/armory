@@ -202,14 +202,16 @@ class ArmOpenNodeHaxeSource(bpy.types.Operator):
     bl_label = 'Open Node Haxe Source'
 
     def execute(self, context):
-        if context.selected_nodes is not None:
-            if len(context.selected_nodes) == 1:
-                if context.selected_nodes[0].bl_idname.startswith('LN'):
-                    name = context.selected_nodes[0].bl_idname[2:]
-                    version = arm.utils.get_last_commit()
-                    if version == '':
-                        version = 'main'
-                    webbrowser.open(f'https://github.com/armory3d/armory/tree/{version}/Sources/armory/logicnode/{name}.hx')
+        if (
+            context.selected_nodes is not None
+            and len(context.selected_nodes) == 1
+            and context.selected_nodes[0].bl_idname.startswith('LN')
+        ):
+            name = context.selected_nodes[0].bl_idname[2:]
+            version = arm.utils.get_last_commit()
+            if version == '':
+                version = 'main'
+            webbrowser.open(f'https://github.com/armory3d/armory/tree/{version}/Sources/armory/logicnode/{name}.hx')
         return{'FINISHED'}
 
 
@@ -219,15 +221,14 @@ class ArmOpenNodePythonSource(bpy.types.Operator):
     bl_label = 'Open Node Python Source'
 
     def execute(self, context):
-        if context.selected_nodes is not None:
-            if len(context.selected_nodes) == 1:
-                node = context.selected_nodes[0]
-                if node.bl_idname.startswith('LN') and node.arm_version is not None:
-                    version = arm.utils.get_last_commit()
-                    if version == '':
-                        version = 'main'
-                    rel_path = node.__module__.replace('.', '/')
-                    webbrowser.open(f'https://github.com/armory3d/armory/tree/{version}/blender/{rel_path}.py')
+        if context.selected_nodes is not None and len(context.selected_nodes) == 1:
+            node = context.selected_nodes[0]
+            if node.bl_idname.startswith('LN') and node.arm_version is not None:
+                version = arm.utils.get_last_commit()
+                if version == '':
+                    version = 'main'
+                rel_path = node.__module__.replace('.', '/')
+                webbrowser.open(f'https://github.com/armory3d/armory/tree/{version}/blender/{rel_path}.py')
         return{'FINISHED'}
 
 
@@ -237,16 +238,15 @@ class ArmOpenNodeWikiEntry(bpy.types.Operator):
     bl_label = 'Open Node Documentation'
 
     def execute(self, context):
-        if context.selected_nodes is not None:
-            if len(context.selected_nodes) == 1:
-                node = context.selected_nodes[0]
-                if node.bl_idname.startswith('LN') and node.arm_version is not None:
-                    anchor = node.bl_label.lower().replace(" ", "-")
+        if context.selected_nodes is not None and len(context.selected_nodes) == 1:
+            node = context.selected_nodes[0]
+            if node.bl_idname.startswith('LN') and node.arm_version is not None:
+                anchor = node.bl_label.lower().replace(" ", "-")
 
-                    category = arm_nodes.eval_node_category(node)
-                    category_section = arm_nodes.get_category(category).category_section
+                category = arm_nodes.eval_node_category(node)
+                category_section = arm_nodes.get_category(category).category_section
 
-                    webbrowser.open(f'https://github.com/armory3d/armory/wiki/reference_{category_section}#{anchor}')
+                webbrowser.open(f'https://github.com/armory3d/armory/wiki/reference_{category_section}#{anchor}')
 
         return {'FINISHED'}
 
@@ -348,7 +348,9 @@ class DrawNodeBreadCrumbs():
     def register_draw(cls):
         if cls.draw_handler is not None:
             cls.unregister_draw()
-        cls.draw_handler = bpy.types.SpaceNodeEditor.draw_handler_add(cls.draw, tuple([bpy.context]), 'WINDOW', 'POST_PIXEL')
+        cls.draw_handler = bpy.types.SpaceNodeEditor.draw_handler_add(
+            cls.draw, (bpy.context,), 'WINDOW', 'POST_PIXEL'
+        )
 
     @classmethod
     def unregister_draw(cls):

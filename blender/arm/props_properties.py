@@ -22,7 +22,12 @@ class ARM_UL_PropertyList(bpy.types.UIList):
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name_prop", text="", emboss=False, icon="OBJECT_DATAMODE")
-            layout.prop(item, item.type_prop + "_prop", text="", emboss=(item.type_prop == 'boolean'))
+            layout.prop(
+                item,
+                f"{item.type_prop}_prop",
+                text="",
+                emboss=(item.type_prop == 'boolean'),
+            )
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon="OBJECT_DATAMODE")
@@ -61,12 +66,10 @@ class ArmPropertyListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         obj = bpy.context.object
-        if obj == None:
-            return False
-        return len(obj.arm_propertylist) > 0
+        return False if obj is None else len(obj.arm_propertylist) > 0
 
     def execute(self, context):
         obj = bpy.context.object
@@ -126,9 +129,7 @@ class ArmPropertyListMoveItem(bpy.types.Operator):
 
 def draw_properties(layout, obj):
     layout.label(text="Properties")
-    rows = 2
-    if len(obj.arm_traitlist) > 1:
-        rows = 4
+    rows = 4 if len(obj.arm_traitlist) > 1 else 2
     row = layout.row()
     row.template_list("ARM_UL_PropertyList", "The_List", obj, "arm_propertylist", obj, "arm_propertylist_index", rows=rows)
     col = row.column(align=True)

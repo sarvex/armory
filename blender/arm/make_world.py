@@ -38,7 +38,7 @@ def build():
     wrd = bpy.data.worlds['Arm']
     rpdat = arm.utils.get_rp()
 
-    mobile_mat = rpdat.arm_material_model == 'Mobile' or rpdat.arm_material_model == 'Solid'
+    mobile_mat = rpdat.arm_material_model in ['Mobile', 'Solid']
     envpath = os.path.join(arm.utils.get_fp_build(), 'compiled', 'Assets', 'envmaps')
 
     wrd.world_defs = ''
@@ -90,7 +90,7 @@ def create_world_shaders(world: bpy.types.World):
     """Creates fragment and vertex shaders for the given world."""
     global shader_datas
     world_name = arm.utils.safestr(world.name)
-    pass_name = 'World_' + world_name
+    pass_name = f'World_{world_name}'
 
     shader_props = {
         'name': world_name,
@@ -100,12 +100,12 @@ def create_world_shaders(world: bpy.types.World):
         'color_attachments': ['_HDR'],
         'vertex_elements': [{'name': 'pos', 'data': 'float3'}, {'name': 'nor', 'data': 'float3'}]
     }
-    shader_data = {'name': world_name + '_data', 'contexts': [shader_props]}
+    shader_data = {'name': f'{world_name}_data', 'contexts': [shader_props]}
 
     # ShaderContext expects a material, but using a world also works
     shader_context = ShaderContext(world, shader_data, shader_props)
-    vert = shader_context.make_vert(custom_name="World_" + world_name)
-    frag = shader_context.make_frag(custom_name="World_" + world_name)
+    vert = shader_context.make_vert(custom_name=f"World_{world_name}")
+    frag = shader_context.make_frag(custom_name=f"World_{world_name}")
 
     # Update name, make_vert() and make_frag() above need another name
     # to work
@@ -138,7 +138,7 @@ def create_world_shaders(world: bpy.types.World):
     make_shader.write_shader(rel_path, shader_context.frag, 'frag', world_name, 'World')
 
     # Write shader data file
-    shader_data_file = pass_name + '_data.arm'
+    shader_data_file = f'{pass_name}_data.arm'
     arm.utils.write_arm(os.path.join(full_path, shader_data_file), {'contexts': [shader_context.data]})
     shader_data_path = os.path.join(arm.utils.get_fp_build(), 'compiled', 'Shaders', shader_data_file)
     assets.add_shader_data(shader_data_path)
@@ -305,7 +305,11 @@ def frag_write_clouds(world: bpy.types.World, frag: Shader):
 
     frag.add_const('float', 'cloudsLower', str(round(world.arm_clouds_lower * 100) / 100))
     frag.add_const('float', 'cloudsUpper', str(round(world.arm_clouds_upper * 100) / 100))
-    frag.add_const('vec2', 'cloudsWind', 'vec2(' + str(round(world.arm_clouds_wind[0] * 100) / 100) + ',' + str(round(world.arm_clouds_wind[1] * 100) / 100) + ')')
+    frag.add_const(
+        'vec2',
+        'cloudsWind',
+        f'vec2({str(round(world.arm_clouds_wind[0] * 100) / 100)},{str(round(world.arm_clouds_wind[1] * 100) / 100)})',
+    )
     frag.add_const('float', 'cloudsPrecipitation', str(round(world.arm_clouds_precipitation * 100) / 100))
     frag.add_const('float', 'cloudsSecondary', str(round(world.arm_clouds_secondary * 100) / 100))
     frag.add_const('float', 'cloudsSteps', str(round(world.arm_clouds_steps * 100) / 100))

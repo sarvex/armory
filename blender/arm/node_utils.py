@@ -93,10 +93,7 @@ def get_socket_index(sockets: Union[NodeInputs, NodeOutputs], socket: NodeSocket
     """Find the socket index in the given node input or output
     collection, return -1 if not found.
     """
-    for i in range(0, len(sockets)):
-        if sockets[i] == socket:
-            return i
-    return -1
+    return next((i for i in range(0, len(sockets)) if sockets[i] == socket), -1)
 
 
 def get_socket_type(socket: NodeSocket) -> str:
@@ -150,7 +147,7 @@ def get_export_node_name(node: bpy.types.Node) -> str:
     """Return the name of the given node that's used in the exported
     Haxe code.
     """
-    return '_' + arm.utils.safesrc(node.name)
+    return f'_{arm.utils.safesrc(node.name)}'
 
 
 def get_haxe_property_names(node: bpy.types.Node) -> Generator[tuple[str, str], None, None]:
@@ -200,15 +197,11 @@ def haxe_format_socket_val(socket_val: Any, array_outer_brackets=True) -> str:
 def haxe_format_val(prop) -> str:
     """Formats a basic value to be valid Haxe syntax."""
     if isinstance(prop, str):
-        res = '"' + str(prop) + '"'
+        res = f'"{str(prop)}"'
     elif isinstance(prop, bool):
         res = str(prop).lower()
     else:
-        if prop is None:
-            res = 'null'
-        else:
-            res = str(prop)
-
+        res = 'null' if prop is None else str(prop)
     return str(res)
 
 
@@ -216,19 +209,15 @@ def haxe_format_prop_value(node: bpy.types.Node, prop_name: str) -> str:
     """Formats a property value to be valid Haxe syntax."""
     prop_value = getattr(node, prop_name)
     if isinstance(prop_value, str):
-        prop_value = '"' + str(prop_value) + '"'
+        prop_value = f'"{str(prop_value)}"'
     elif isinstance(prop_value, bool):
         prop_value = str(prop_value).lower()
     elif hasattr(prop_value, 'name'):  # PointerProperty
-        prop_value = '"' + str(prop_value.name) + '"'
+        prop_value = f'"{str(prop_value.name)}"'
     elif isinstance(prop_value, bpy.types.bpy_prop_array):
         prop_value = '[' + ','.join(haxe_format_val(prop) for prop in prop_value) + ']'
     else:
-        if prop_value is None:
-            prop_value = 'null'
-        else:
-            prop_value = str(prop_value)
-
+        prop_value = 'null' if prop_value is None else str(prop_value)
     return prop_value
 
 

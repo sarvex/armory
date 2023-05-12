@@ -58,7 +58,7 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
         layout.use_property_decorate = False
 
         obj = bpy.context.object
-        if obj == None:
+        if obj is None:
             return
 
         col = layout.column()
@@ -74,11 +74,14 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
             wrd = bpy.data.worlds['Arm']
             layout.prop_search(obj, "arm_tilesheet", wrd, "arm_tilesheetlist", text="Tilesheet")
             if obj.arm_tilesheet != '':
-                selected_ts = None
-                for ts in wrd.arm_tilesheetlist:
-                    if ts.name == obj.arm_tilesheet:
-                        selected_ts = ts
-                        break
+                selected_ts = next(
+                    (
+                        ts
+                        for ts in wrd.arm_tilesheetlist
+                        if ts.name == obj.arm_tilesheet
+                    ),
+                    None,
+                )
                 layout.prop_search(obj, "arm_tilesheet_action", selected_ts, "arm_tilesheetactionlist", text="Action")
 
         # Properties list
@@ -111,11 +114,9 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
                         row = layout.row()
                         item = scene.TLM_AtlasList[scene.TLM_AtlasListItem]
                         row.prop_search(obj.TLM_ObjectProperties, "tlm_atlas_pointer", scene, "TLM_AtlasList", text='Atlas Group')
-                        row = layout.row()
                     else:
                         row = layout.label(text="Add Atlas Groups from the scene lightmapping settings.")
-                        row = layout.row()
-
+                    row = layout.row()
                 else:
                     row = layout.row()
                     row.prop(obj.TLM_ObjectProperties, "tlm_postpack_object")
@@ -127,11 +128,9 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
                         row = layout.row()
                         item = scene.TLM_PostAtlasList[scene.TLM_PostAtlasListItem]
                         row.prop_search(obj.TLM_ObjectProperties, "tlm_postatlas_pointer", scene, "TLM_PostAtlasList", text='Atlas Group')
-                        row = layout.row()
-
                     else:
                         row = layout.label(text="Add Atlas Groups from the scene lightmapping settings.")
-                        row = layout.row()
+                    row = layout.row()
 
                 row.prop(obj.TLM_ObjectProperties, "tlm_mesh_unwrap_margin")
                 row = layout.row()
@@ -144,11 +143,9 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
                     if obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Gaussian":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_gaussian_strength")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     elif obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Box":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_box_strength")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     elif obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Bilateral":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_bilateral_diameter")
                         row = layout.row(align=True)
@@ -156,12 +153,10 @@ class ARM_PT_ObjectPropsPanel(bpy.types.Panel):
                         row = layout.row(align=True)
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_bilateral_coordinate_deviation")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     else:
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_median_kernel", expand=True)
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
-
+                    row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                 #If UV Packer installed
                 if "UV-Packer" in bpy.context.preferences.addons.keys():
                     row.prop(obj.TLM_ObjectProperties, "tlm_use_uv_packer")
@@ -183,7 +178,7 @@ class ARM_PT_ModifiersPropsPanel(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         obj = bpy.context.object
-        if obj == None:
+        if obj is None:
             return
         layout.operator("arm.invalidate_cache")
 
@@ -199,7 +194,7 @@ class ARM_PT_ParticlesPropsPanel(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         obj = bpy.context.particle_system
-        if obj == None:
+        if obj is None:
             return
 
         layout.prop(obj.settings, 'arm_loop')
@@ -216,7 +211,7 @@ class ARM_PT_PhysicsPropsPanel(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         obj = bpy.context.object
-        if obj == None:
+        if obj is None:
             return
 
         rb = obj.rigid_body
@@ -257,13 +252,13 @@ class ARM_PT_DataPropsPanel(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         obj = bpy.context.object
-        if obj == None:
+        if obj is None:
             return
 
         wrd = bpy.data.worlds['Arm']
         if obj.type == 'CAMERA':
             layout.prop(obj.data, 'arm_frustum_culling')
-        elif obj.type == 'MESH' or obj.type == 'FONT' or obj.type == 'META':
+        elif obj.type in ['MESH', 'FONT', 'META']:
             layout.prop(obj.data, 'arm_dynamic_usage')
             layout.operator("arm.invalidate_cache")
         elif obj.type == 'LIGHT':
@@ -280,7 +275,6 @@ class ARM_PT_DataPropsPanel(bpy.types.Panel):
         elif obj.type == 'ARMATURE':
             layout.prop(obj.data, 'arm_autobake')
             layout.prop(obj.data, 'arm_relative_bone_constraints')
-            pass
 
 class ARM_PT_WorldPropsPanel(bpy.types.Panel):
     bl_label = "Armory World Properties"
@@ -319,7 +313,7 @@ class ARM_PT_ScenePropsPanel(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         scene = bpy.context.scene
-        if scene == None:
+        if scene is None:
             return
         row = layout.row()
         column = row.column()
@@ -513,9 +507,7 @@ class ARM_OT_BindTexturesListNewItem(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         mat = context.material
-        if mat is None:
-            return False
-        return True
+        return mat is not None
 
     def execute(self, context):
         mat = context.material
@@ -532,9 +524,7 @@ class ARM_OT_BindTexturesListDeleteItem(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         mat = context.material
-        if mat is None:
-            return False
-        return len(mat.arm_bind_textures_list) > 0
+        return False if mat is None else len(mat.arm_bind_textures_list) > 0
 
     def execute(self, context):
         mat = context.material
@@ -605,10 +595,7 @@ class ARM_PT_BindTexturesPropsPanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         mat = context.material
-        if mat is None:
-            return False
-
-        return mat.arm_custom_material != ''
+        return False if mat is None else mat.arm_custom_material != ''
 
     def draw(self, context):
         layout = self.layout
@@ -774,9 +761,7 @@ class ARM_PT_ArmoryExporterPanel(bpy.types.Panel):
         # row.operator("arm.patch_project")
         row.operator("arm.publish_project", icon="EXPORT")
 
-        rows = 2
-        if len(wrd.arm_exporterlist) > 1:
-            rows = 4
+        rows = 4 if len(wrd.arm_exporterlist) > 1 else 2
         row = layout.row()
         row.template_list("ARM_UL_ExporterList", "The_List", wrd, "arm_exporterlist", wrd, "arm_exporterlist_index", rows=rows)
         col = row.column(align=True)
@@ -880,9 +865,7 @@ class ARM_PT_ArmoryExporterAndroidPermissionsPanel(bpy.types.Panel):
         wrd = bpy.data.worlds['Arm']
         # Permission
         row = layout.row()
-        rows = 2
-        if len(wrd.arm_exporter_android_permission_list) > 1:
-            rows = 4
+        rows = 4 if len(wrd.arm_exporter_android_permission_list) > 1 else 2
         row.template_list("ARM_UL_Exporter_AndroidPermissionList", "The_List", wrd, "arm_exporter_android_permission_list", wrd, "arm_exporter_android_permission_list_index", rows=rows)
         col = row.column(align=True)
         col.operator("arm_exporter_android_permission_list.new_item", icon='ADD', text="")
@@ -909,9 +892,7 @@ class ARM_PT_ArmoryExporterAndroidAbiPanel(bpy.types.Panel):
         wrd = bpy.data.worlds['Arm']
         # ABIs
         row = layout.row()
-        rows = 2
-        if len(wrd.arm_exporter_android_abi_list) > 1:
-            rows = 4
+        rows = 4 if len(wrd.arm_exporter_android_abi_list) > 1 else 2
         row.template_list("ARM_UL_Exporter_AndroidAbiList", "The_List", wrd, "arm_exporter_android_abi_list", wrd, "arm_exporter_android_abi_list_index", rows=rows)
         col = row.column(align=True)
         col.operator("arm_exporter_android_abi_list.new_item", icon='ADD', text="")
@@ -1247,7 +1228,7 @@ class ArmoryBuildProjectButton(bpy.types.Operator):
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
         if item.arm_project_rp == '':
             item.arm_project_rp = wrd.arm_rplist[wrd.arm_rplist_index].name
-        if item.arm_project_scene == None:
+        if item.arm_project_scene is None:
             item.arm_project_scene = context.scene
         # Assume unique rp names
         rplist_index = wrd.arm_rplist_index
@@ -1294,7 +1275,7 @@ class ArmoryPublishProjectButton(bpy.types.Operator):
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
         if item.arm_project_rp == '':
             item.arm_project_rp = wrd.arm_rplist[wrd.arm_rplist_index].name
-        if item.arm_project_scene == None:
+        if item.arm_project_scene is None:
             item.arm_project_scene = context.scene
         # Assume unique rp names
         rplist_index = wrd.arm_rplist_index
@@ -1337,7 +1318,7 @@ class ArmoryOpenEditorButton(bpy.types.Operator):
 
         arm.utils.check_default_props()
 
-        if not os.path.exists(arm.utils.get_fp() + "/khafile.js"):
+        if not os.path.exists(f"{arm.utils.get_fp()}/khafile.js"):
             print('Generating Krom project for IDE build configuration')
             make.build('krom')
 
@@ -1430,9 +1411,7 @@ class ARM_PT_RenderPathPanel(bpy.types.Panel):
         layout.use_property_decorate = False
         wrd = bpy.data.worlds['Arm']
 
-        rows = 2
-        if len(wrd.arm_rplist) > 1:
-            rows = 4
+        rows = 4 if len(wrd.arm_rplist) > 1 else 2
         row = layout.row()
         row.template_list("ARM_UL_RPList", "The_List", wrd, "arm_rplist", wrd, "arm_rplist_index", rows=rows)
         col = row.column(align=True)
@@ -1449,8 +1428,8 @@ class ARM_PT_RenderPathPanel(bpy.types.Panel):
         if wrd.arm_rplist_index < 0 or len(wrd.arm_rplist) == 0:
             return
 
-        rpdat = wrd.arm_rplist[wrd.arm_rplist_index]
         if len(arm.api.drivers) > 0:
+            rpdat = wrd.arm_rplist[wrd.arm_rplist_index]
             layout.prop_search(rpdat, "rp_driver", wrd, "rp_driver_list", text="Driver")
             layout.separator()
             if rpdat.rp_driver != 'Armory' and arm.api.drivers[rpdat.rp_driver]['draw_props'] != None:
@@ -1542,7 +1521,7 @@ class ARM_PT_RenderPathShadowsPanel(bpy.types.Panel):
 
     def compute_subdivs(self, max, subdivs):
         l = [max]
-        for i in range(subdivs - 1):
+        for _ in range(subdivs - 1):
             l.append(int(max / 2))
             max = max / 2
         return l

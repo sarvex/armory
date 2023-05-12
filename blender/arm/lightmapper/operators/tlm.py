@@ -8,28 +8,21 @@ from .. network import server
 def setObjectLightmapByWeight(minimumRes, maximumRes, objWeight):
         
         availableResolutions = [32,64,128,256,512,1024,2048,4096,8192]
-        
+
         minRes = minimumRes
         minResIdx = availableResolutions.index(minRes)
         maxRes = maximumRes
         maxResIdx = availableResolutions.index(maxRes)
-        
+
         exampleWeight = objWeight
-        
-        if minResIdx == maxResIdx:
-            pass
-        else:
-        
-            increment = 1.0/(maxResIdx-minResIdx)
-            
-            assortedRange = []
-            
-            for a in numpy.arange(0.0, 1.0, increment):
-                assortedRange.append(round(a, 2))
-                
-            assortedRange.append(1.0)
-            nearestWeight = min(assortedRange, key=lambda x:abs(x - exampleWeight))
-            return (availableResolutions[assortedRange.index(nearestWeight) + minResIdx])
+
+        if minResIdx != maxResIdx:
+                increment = 1.0/(maxResIdx-minResIdx)
+
+                assortedRange = [round(a, 2) for a in numpy.arange(0.0, 1.0, increment)]
+                assortedRange.append(1.0)
+                nearestWeight = min(assortedRange, key=lambda x:abs(x - exampleWeight))
+                return (availableResolutions[assortedRange.index(nearestWeight) + minResIdx])
 
 class TLM_BuildLightmaps(bpy.types.Operator):
     bl_idname = "tlm.build_lightmaps"
@@ -71,112 +64,121 @@ class TLM_CleanLightmaps(bpy.types.Operator):
 
     def execute(self, context):
 
-        scene = context.scene
+            scene = context.scene
 
-        filepath = bpy.data.filepath
-        dirpath = os.path.join(os.path.dirname(bpy.data.filepath), scene.TLM_EngineProperties.tlm_lightmap_savedir)
+            filepath = bpy.data.filepath
+            dirpath = os.path.join(os.path.dirname(bpy.data.filepath), scene.TLM_EngineProperties.tlm_lightmap_savedir)
 
-        if not bpy.context.scene.TLM_SceneProperties.tlm_keep_baked_files:
-            if os.path.isdir(dirpath):
-                for file in os.listdir(dirpath):
-                    os.remove(os.path.join(dirpath + "/" + file))
+            if (not bpy.context.scene.TLM_SceneProperties.tlm_keep_baked_files
+                and os.path.isdir(dirpath)):
+                    for file in os.listdir(dirpath):
+                            os.remove(os.path.join(f"{dirpath}/{file}"))
 
-        for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH' and obj.name in bpy.context.view_layer.objects:
-                if obj.TLM_ObjectProperties.tlm_mesh_lightmap_use:
-                    cache.backup_material_restore(obj)
+            for obj in bpy.context.scene.objects:
+                    if (obj.type == 'MESH'
+                        and obj.name in bpy.context.view_layer.objects
+                        and obj.TLM_ObjectProperties.tlm_mesh_lightmap_use):
+                            cache.backup_material_restore(obj)
 
-        for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH' and obj.name in bpy.context.view_layer.objects:
-                if obj.TLM_ObjectProperties.tlm_mesh_lightmap_use:
-                    cache.backup_material_rename(obj)
+            for obj in bpy.context.scene.objects:
+                    if (obj.type == 'MESH'
+                        and obj.name in bpy.context.view_layer.objects
+                        and obj.TLM_ObjectProperties.tlm_mesh_lightmap_use):
+                            cache.backup_material_rename(obj)
 
-        for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH' and obj.name in bpy.context.view_layer.objects:
-                if obj.TLM_ObjectProperties.tlm_mesh_lightmap_use:
-                    for vertex_layer in obj.data.vertex_colors:
-                        if vertex_layer.name == "TLM":
-                            obj.data.vertex_colors.remove(vertex_layer)
+            for obj in bpy.context.scene.objects:
+                    if (obj.type == 'MESH'
+                        and obj.name in bpy.context.view_layer.objects
+                        and obj.TLM_ObjectProperties.tlm_mesh_lightmap_use):
+                            for vertex_layer in obj.data.vertex_colors:
+                                if vertex_layer.name == "TLM":
+                                    obj.data.vertex_colors.remove(vertex_layer)
 
-        for mat in bpy.data.materials:
-            if mat.users < 1:
-                bpy.data.materials.remove(mat)
-
-        for mat in bpy.data.materials:
-            if mat.name.startswith("."):
-                if "_Original" in mat.name:
+            for mat in bpy.data.materials:
+                if mat.users < 1:
                     bpy.data.materials.remove(mat)
 
-        for image in bpy.data.images:
-            if image.name.endswith("_baked"):
-                bpy.data.images.remove(image, do_unlink=True)
+            for mat in bpy.data.materials:
+                    if mat.name.startswith(".") and "_Original" in mat.name:
+                            bpy.data.materials.remove(mat)
 
-        for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH' and obj.name in bpy.context.view_layer.objects:
-                if obj.TLM_ObjectProperties.tlm_mesh_lightmap_use:
-                    if obj.TLM_ObjectProperties.tlm_postpack_object:
+            for image in bpy.data.images:
+                if image.name.endswith("_baked"):
+                    bpy.data.images.remove(image, do_unlink=True)
 
-                        atlas = obj.TLM_ObjectProperties.tlm_postatlas_pointer
-                        atlas_resize = False
-
-                        for atlasgroup in scene.TLM_PostAtlasList:
-                            if atlasgroup.name == atlas:
-                                atlas_resize = True
-
-                        if atlas_resize:
-
-                            bpy.ops.object.select_all(action='DESELECT')
-                            obj.select_set(True)
-                            bpy.context.view_layer.objects.active = obj
-
-                            uv_layers = obj.data.uv_layers
-
-                            if not obj.TLM_ObjectProperties.tlm_use_default_channel:
-                                uv_channel = obj.TLM_ObjectProperties.tlm_uv_channel
-                            else:
-                                uv_channel = "UVMap_Lightmap"
-                            
-                            for i in range(0, len(uv_layers)):
-                                if uv_layers[i].name == uv_channel:
-                                    uv_layers.active_index = i
-                                    break
-
-                            bpy.ops.object.mode_set(mode='EDIT')
-                            bpy.ops.mesh.select_all(action='SELECT')
-                            bpy.ops.uv.select_all(action='SELECT')
-                            bpy.ops.uv.pack_islands(rotate=False, margin=0.001)
-                            bpy.ops.uv.select_all(action='DESELECT')
-                            bpy.ops.mesh.select_all(action='DESELECT')
-                            bpy.ops.object.mode_set(mode='OBJECT')
-
-                            if bpy.context.scene.TLM_SceneProperties.tlm_verbose:
-                                print("Resized for obj: " + obj.name)
-
-                    if "Lightmap" in obj:
-                        del obj["Lightmap"]
-
-        if bpy.context.scene.TLM_SceneProperties.tlm_repartition_on_clean:
-
-            mats = bpy.data.materials
-            
             for obj in bpy.context.scene.objects:
-                if obj.type == 'MESH' and obj.name in bpy.context.view_layer.objects:
-                    if obj.TLM_ObjectProperties.tlm_mesh_lightmap_use:
+                    if (obj.type == 'MESH'
+                        and obj.name in bpy.context.view_layer.objects
+                        and obj.TLM_ObjectProperties.tlm_mesh_lightmap_use):
+                            if obj.TLM_ObjectProperties.tlm_postpack_object:
 
-                        print("Repartitioning materials")
+                                    atlas = obj.TLM_ObjectProperties.tlm_postatlas_pointer
+                                    atlas_resize = any(
+                                        atlasgroup.name == atlas
+                                        for atlasgroup in scene.TLM_PostAtlasList)
+                                    if atlas_resize:
 
-                        for slt in obj.material_slots:
-                            print("Repartitioning material: " + str(slt.name))
-                            part = slt.name.rpartition('.')
-                            if part[2].isnumeric() and part[0] in mats:
-                                slt.material = mats.get(part[0])
+                                            bpy.ops.object.select_all(action='DESELECT')
+                                            obj.select_set(True)
+                                            bpy.context.view_layer.objects.active = obj
 
-                        for slt in obj.material_slots:
-                            if slt.name.endswith(tuple(["001","002","003","004","005","006","007","008","009"])): #Do regex instead
-                                if not slt.name[:-4] in mats:
-                                    slt.material.name = slt.name[:-4]
+                                            uv_layers = obj.data.uv_layers
 
-        return {'FINISHED'}
+                                            if not obj.TLM_ObjectProperties.tlm_use_default_channel:
+                                                uv_channel = obj.TLM_ObjectProperties.tlm_uv_channel
+                                            else:
+                                                uv_channel = "UVMap_Lightmap"
+
+                                            for i in range(0, len(uv_layers)):
+                                                if uv_layers[i].name == uv_channel:
+                                                    uv_layers.active_index = i
+                                                    break
+
+                                            bpy.ops.object.mode_set(mode='EDIT')
+                                            bpy.ops.mesh.select_all(action='SELECT')
+                                            bpy.ops.uv.select_all(action='SELECT')
+                                            bpy.ops.uv.pack_islands(rotate=False, margin=0.001)
+                                            bpy.ops.uv.select_all(action='DESELECT')
+                                            bpy.ops.mesh.select_all(action='DESELECT')
+                                            bpy.ops.object.mode_set(mode='OBJECT')
+
+                                            if bpy.context.scene.TLM_SceneProperties.tlm_verbose:
+                                                    print(f"Resized for obj: {obj.name}")
+
+                            if "Lightmap" in obj:
+                                del obj["Lightmap"]
+
+            if bpy.context.scene.TLM_SceneProperties.tlm_repartition_on_clean:
+
+                    mats = bpy.data.materials
+
+                    for obj in bpy.context.scene.objects:
+                            if (obj.type == 'MESH'
+                                and obj.name in bpy.context.view_layer.objects and
+                                obj.TLM_ObjectProperties.tlm_mesh_lightmap_use):
+                                    print("Repartitioning materials")
+
+                                    for slt in obj.material_slots:
+                                            print(f"Repartitioning material: {str(slt.name)}")
+                                            part = slt.name.rpartition('.')
+                                            if part[2].isnumeric() and part[0] in mats:
+                                                slt.material = mats.get(part[0])
+
+                                    for slt in obj.material_slots:
+                                            if (slt.name.endswith((
+                                                "001",
+                                                "002",
+                                                "003",
+                                                "004",
+                                                "005",
+                                                "006",
+                                                "007",
+                                                "008",
+                                                "009",
+                                            )) and slt.name[:-4] not in mats):
+                                                    slt.material.name = slt.name[:-4]
+
+            return {'FINISHED'}
 
 class TLM_ExploreLightmaps(bpy.types.Operator):
     bl_idname = "tlm.explore_lightmaps"
@@ -186,34 +188,27 @@ class TLM_ExploreLightmaps(bpy.types.Operator):
 
     def execute(self, context):
 
-        scene = context.scene
-        cycles = scene.cycles
+            scene = context.scene
+            cycles = scene.cycles
 
-        if not bpy.data.is_saved:
-            self.report({'INFO'}, "Please save your file first")
-            return {"CANCELLED"}
+            if not bpy.data.is_saved:
+                self.report({'INFO'}, "Please save your file first")
+                return {"CANCELLED"}
 
-        filepath = bpy.data.filepath
-        dirpath = os.path.join(os.path.dirname(bpy.data.filepath), scene.TLM_EngineProperties.tlm_lightmap_savedir)
-        
-        if platform.system() != "Linux":
+            filepath = bpy.data.filepath
+            dirpath = os.path.join(os.path.dirname(bpy.data.filepath), scene.TLM_EngineProperties.tlm_lightmap_savedir)
 
-            if os.path.isdir(dirpath):
-                webbrowser.open('file://' + dirpath)
+            if platform.system() != "Linux":
+
+                    if not os.path.isdir(dirpath):
+                            os.mkdir(dirpath)
+                    webbrowser.open(f'file://{dirpath}')
             else:
-                os.mkdir(dirpath)
-                webbrowser.open('file://' + dirpath)
-        else:
 
-            if os.path.isdir(dirpath):
-                os.system('xdg-open "%s"' % dirpath)
-                #webbrowser.open('file://' + dirpath)
-            else:
-                os.mkdir(dirpath)
-                os.system('xdg-open "%s"' % dirpath)
-                #webbrowser.open('file://' + dirpath)
-
-        return {'FINISHED'}
+                    if not os.path.isdir(dirpath):
+                            os.mkdir(dirpath)
+                    os.system(f'xdg-open "{dirpath}"')
+            return {'FINISHED'}
 
 class TLM_EnableSet(bpy.types.Operator):
     """Enable for set"""

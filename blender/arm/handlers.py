@@ -77,36 +77,38 @@ def on_operator_post(operator_id: str) -> None:
     executed in another context. Warning: this function is also called
     when the operator execution raised an exception!"""
     # 3D View > Object > Rigid Body > Copy from Active
-    if operator_id == "RIGIDBODY_OT_object_settings_copy":
-        # Copy armory rigid body settings
-        source_obj = bpy.context.active_object
-        for target_obj in bpy.context.selected_objects:
-            target_obj.arm_rb_linear_factor = source_obj.arm_rb_linear_factor
-            target_obj.arm_rb_angular_factor = source_obj.arm_rb_angular_factor
-            target_obj.arm_rb_angular_friction = source_obj.arm_rb_angular_friction
-            target_obj.arm_rb_trigger = source_obj.arm_rb_trigger
-            target_obj.arm_rb_deactivation_time = source_obj.arm_rb_deactivation_time
-            target_obj.arm_rb_ccd = source_obj.arm_rb_ccd
-            target_obj.arm_rb_collision_filter_mask = source_obj.arm_rb_collision_filter_mask
+    if operator_id != "RIGIDBODY_OT_object_settings_copy":
+        return
+    # Copy armory rigid body settings
+    source_obj = bpy.context.active_object
+    for target_obj in bpy.context.selected_objects:
+        target_obj.arm_rb_linear_factor = source_obj.arm_rb_linear_factor
+        target_obj.arm_rb_angular_factor = source_obj.arm_rb_angular_factor
+        target_obj.arm_rb_angular_friction = source_obj.arm_rb_angular_friction
+        target_obj.arm_rb_trigger = source_obj.arm_rb_trigger
+        target_obj.arm_rb_deactivation_time = source_obj.arm_rb_deactivation_time
+        target_obj.arm_rb_ccd = source_obj.arm_rb_ccd
+        target_obj.arm_rb_collision_filter_mask = source_obj.arm_rb_collision_filter_mask
 
 
 def send_operator(op):
-    if hasattr(bpy.context, 'object') and bpy.context.object is not None:
-        obj = bpy.context.object.name
-        if op.name == 'Move':
-            vec = bpy.context.object.location
-            js = 'var o = iron.Scene.active.getChild("' + obj + '"); o.transform.loc.set(' + str(vec[0]) + ', ' + str(vec[1]) + ', ' + str(vec[2]) + '); o.transform.dirty = true;'
-            make.write_patch(js)
-        elif op.name == 'Resize':
-            vec = bpy.context.object.scale
-            js = 'var o = iron.Scene.active.getChild("' + obj + '"); o.transform.scale.set(' + str(vec[0]) + ', ' + str(vec[1]) + ', ' + str(vec[2]) + '); o.transform.dirty = true;'
-            make.write_patch(js)
-        elif op.name == 'Rotate':
-            vec = bpy.context.object.rotation_euler.to_quaternion()
-            js = 'var o = iron.Scene.active.getChild("' + obj + '"); o.transform.rot.set(' + str(vec[1]) + ', ' + str(vec[2]) + ', ' + str(vec[3]) + ' ,' + str(vec[0]) + '); o.transform.dirty = true;'
-            make.write_patch(js)
-        else: # Rebuild
-            make.patch()
+    if not hasattr(bpy.context, 'object') or bpy.context.object is None:
+        return
+    obj = bpy.context.object.name
+    if op.name == 'Move':
+        vec = bpy.context.object.location
+        js = f'var o = iron.Scene.active.getChild("{obj}"); o.transform.loc.set({str(vec[0])}, {str(vec[1])}, {str(vec[2])}); o.transform.dirty = true;'
+        make.write_patch(js)
+    elif op.name == 'Resize':
+        vec = bpy.context.object.scale
+        js = f'var o = iron.Scene.active.getChild("{obj}"); o.transform.scale.set({str(vec[0])}, {str(vec[1])}, {str(vec[2])}); o.transform.dirty = true;'
+        make.write_patch(js)
+    elif op.name == 'Rotate':
+        vec = bpy.context.object.rotation_euler.to_quaternion()
+        js = f'var o = iron.Scene.active.getChild("{obj}"); o.transform.rot.set({str(vec[1])}, {str(vec[2])}, {str(vec[3])} ,{str(vec[0])}); o.transform.dirty = true;'
+        make.write_patch(js)
+    else: # Rebuild
+        make.patch()
 
 
 def always() -> float:
@@ -204,19 +206,20 @@ def load_py_libraries():
         libs = os.listdir(lib_path)
         for lib_name in libs:
             fp = os.path.join(lib_path, lib_name)
-            if os.path.isdir(fp):
-                if os.path.exists(os.path.join(fp, 'blender.py')):
-                    sys.path.append(fp)
+            if os.path.isdir(fp) and os.path.exists(
+                os.path.join(fp, 'blender.py')
+            ):
+                sys.path.append(fp)
 
-                    lib_module = importlib.import_module('blender')
-                    importlib.reload(lib_module)
-                    if hasattr(lib_module, 'register'):
-                        lib_module.register()
+                lib_module = importlib.import_module('blender')
+                importlib.reload(lib_module)
+                if hasattr(lib_module, 'register'):
+                    lib_module.register()
 
-                    log.debug(f'Armory: Loaded Python library {lib_name}')
-                    loaded_py_libraries[lib_name] = lib_module
+                log.debug(f'Armory: Loaded Python library {lib_name}')
+                loaded_py_libraries[lib_name] = lib_module
 
-                    sys.path.remove(fp)
+                sys.path.remove(fp)
 
         # Register newly added nodes and node categories
         arm.nodes_logic.register_nodes()
@@ -241,7 +244,7 @@ def load_library(asset_name):
     if bpy.data.filepath.endswith('arm_data.blend'): # Prevent load in library itself
         return
     sdk_path = arm.utils.get_sdk_path()
-    data_path = sdk_path + '/armory/blender/data/arm_data.blend'
+    data_path = f'{sdk_path}/armory/blender/data/arm_data.blend'
     data_names = [asset_name]
 
     # Import

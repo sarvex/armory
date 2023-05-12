@@ -40,7 +40,9 @@ def register_nodes():
     for category in sorted(arm_nodes.category_items):
         sorted_items = sorted(arm_nodes.category_items[category], key=lambda item: item.nodetype)
         node_categories.append(
-            MaterialNodeCategory('ArmMaterial' + category + 'Nodes', category, items=sorted_items)
+            MaterialNodeCategory(
+                f'ArmMaterial{category}Nodes', category, items=sorted_items
+            )
         )
 
     nodeitems_utils.register_node_categories('ArmMaterialNodes', node_categories)

@@ -40,19 +40,18 @@ def _pack_integer(obj, fp):
             fp.write(b"\xd3" + struct.pack("<q", obj))
         else:
             raise Exception("huge signed int")
+    elif obj <= 127:
+        fp.write(struct.pack("B", obj))
+    elif obj <= 2**8 - 1:
+        fp.write(b"\xcc" + struct.pack("B", obj))
+    elif obj <= 2**16 - 1:
+        fp.write(b"\xcd" + struct.pack("<H", obj))
+    elif obj <= 2**32 - 1:
+        fp.write(b"\xce" + struct.pack("<I", obj))
+    elif obj <= 2**64 - 1:
+        fp.write(b"\xcf" + struct.pack("<Q", obj))
     else:
-        if obj <= 127:
-            fp.write(struct.pack("B", obj))
-        elif obj <= 2**8 - 1:
-            fp.write(b"\xcc" + struct.pack("B", obj))
-        elif obj <= 2**16 - 1:
-            fp.write(b"\xcd" + struct.pack("<H", obj))
-        elif obj <= 2**32 - 1:
-            fp.write(b"\xce" + struct.pack("<I", obj))
-        elif obj <= 2**64 - 1:
-            fp.write(b"\xcf" + struct.pack("<Q", obj))
-        else:
-            raise Exception("huge unsigned int")
+        raise Exception("huge unsigned int")
 
 
 def _pack_nil(obj, fp):

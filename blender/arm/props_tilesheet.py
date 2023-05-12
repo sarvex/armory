@@ -53,7 +53,7 @@ class ArmTilesheetActionListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """Enable if there's something in the list"""
         wrd = bpy.data.worlds['Arm']
         if len(wrd.arm_tilesheetlist) == 0:
@@ -88,7 +88,7 @@ class ArmTilesheetActionListMoveItem(bpy.types.Operator):
         ))
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """Enable if there's something in the list"""
         wrd = bpy.data.worlds['Arm']
         if len(wrd.arm_tilesheetlist) == 0:
@@ -184,7 +184,7 @@ class ArmTilesheetListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         wrd = bpy.data.worlds['Arm']
         return len(wrd.arm_tilesheetlist) > 0
@@ -215,7 +215,7 @@ class ArmTilesheetListMoveItem(bpy.types.Operator):
         ))
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list. """
         wrd = bpy.data.worlds['Arm']
         return len(wrd.arm_tilesheetlist) > 0

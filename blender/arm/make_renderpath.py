@@ -74,9 +74,11 @@ def add_world_defs():
                 assets.add_khafile_def('arm_shadowmap_atlas_lod')
                 assets.add_khafile_def('rp_shadowmap_atlas_lod_subdivisions={0}'.format(int(rpdat.rp_shadowmap_atlas_lod_subdivisions)))
     # SS
-    if rpdat.rp_ssgi == 'RTGI' or rpdat.rp_ssgi == 'RTAO':
-        if rpdat.rp_ssgi == 'RTGI':
-            wrd.world_defs += '_RTGI'
+    if rpdat.rp_ssgi == 'RTAO':
+        if rpdat.arm_ssgi_rays == '9':
+            wrd.world_defs += '_SSGICone9'
+    elif rpdat.rp_ssgi == 'RTGI':
+        wrd.world_defs += '_RTGI'
         if rpdat.arm_ssgi_rays == '9':
             wrd.world_defs += '_SSGICone9'
     if rpdat.rp_autoexposure:
@@ -84,7 +86,7 @@ def add_world_defs():
 
     has_voxels = arm.utils.voxel_support()
     if rpdat.rp_voxelao and has_voxels and rpdat.arm_material_model == 'Full':
-        wrd.world_defs += '_VoxelCones' + rpdat.arm_voxelgi_cones
+        wrd.world_defs += f'_VoxelCones{rpdat.arm_voxelgi_cones}'
         if rpdat.arm_voxelgi_revoxelize:
             assets.add_khafile_def('arm_voxelgi_revox')
             if rpdat.arm_voxelgi_camera:
@@ -113,23 +115,22 @@ def add_world_defs():
                 assets.add_khafile_def('arm_ltc')
             if light.type == 'SUN' and '_Sun' not in wrd.world_defs:
                 wrd.world_defs += '_Sun'
-            if light.type == 'POINT' or light.type == 'SPOT':
+            if light.type in ['POINT', 'SPOT']:
                 point_lights += 1
-                if light.type == 'SPOT' and '_Spot' not in wrd.world_defs:
-                    wrd.world_defs += '_Spot'
-                    assets.add_khafile_def('arm_spot')
+            if light.type == 'SPOT' and '_Spot' not in wrd.world_defs:
+                wrd.world_defs += '_Spot'
+                assets.add_khafile_def('arm_spot')
 
-    if not rpdat.rp_shadowmap_atlas:
-        if point_lights == 1:
-            wrd.world_defs += '_SinglePoint'
-        elif point_lights > 1:
-            wrd.world_defs += '_Clusters'
-            assets.add_khafile_def('arm_clusters')
-    else:
+    if rpdat.rp_shadowmap_atlas:
         wrd.world_defs += '_SMSizeUniform'
         wrd.world_defs += '_Clusters'
         assets.add_khafile_def('arm_clusters')
 
+    elif point_lights == 1:
+        wrd.world_defs += '_SinglePoint'
+    elif point_lights > 1:
+        wrd.world_defs += '_Clusters'
+        assets.add_khafile_def('arm_clusters')
     if '_Rad' in wrd.world_defs and '_Brdf' not in wrd.world_defs:
         wrd.world_defs += '_Brdf'
 

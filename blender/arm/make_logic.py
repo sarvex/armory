@@ -18,9 +18,9 @@ else:
     arm.enable_reload(__name__)
 
 parsed_nodes = []
-parsed_ids = dict() # Sharing node data
-function_nodes = dict()
-function_node_outputs = dict()
+parsed_ids = {}
+function_nodes = {}
+function_node_outputs = {}
 group_name = ''
 
 
@@ -53,9 +53,9 @@ def build_node_tree(node_group: 'arm.nodes_logic.ArmLogicTree'):
     global function_node_outputs
     global group_name
     parsed_nodes = []
-    parsed_ids = dict()
-    function_nodes = dict()
-    function_node_outputs = dict()
+    parsed_ids = {}
+    function_nodes = {}
+    function_node_outputs = {}
     root_nodes = get_root_nodes(node_group)
 
     pack_path = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_package)
@@ -70,9 +70,12 @@ def build_node_tree(node_group: 'arm.nodes_logic.ArmLogicTree'):
     wrd = bpy.data.worlds['Arm']
 
     with open(file, 'w', encoding="utf-8") as f:
-        f.write('package ' + pack_path + '.node;\n\n')
+        f.write(f'package {pack_path}' + '.node;\n\n')
         f.write('@:access(armory.logicnode.LogicNode)')
-        f.write('@:keep class ' + group_name + ' extends armory.logicnode.LogicTree {\n\n')
+        f.write(
+            f'@:keep class {group_name}'
+            + ' extends armory.logicnode.LogicTree {\n\n'
+        )
         f.write('\tvar functionNodes:Map<String, armory.logicnode.FunctionNode>;\n\n')
         f.write('\tvar functionOutputNodes:Map<String, armory.logicnode.FunctionOutputNode>;\n\n')
         f.write('\tpublic function new() {\n')
@@ -104,7 +107,7 @@ def build_node_tree(node_group: 'arm.nodes_logic.ArmLogicTree'):
             f.write('\n\tpublic function ' + function_name + '(')
             for i in range(0, len(node.outputs) - 1):
                 if i != 0: f.write(', ')
-                f.write('arg' + str(i) + ':Dynamic')
+                f.write(f'arg{str(i)}:Dynamic')
             f.write(') {\n')
             f.write('\t\tvar functionNode = this.functionNodes["' + node_name + '"];\n')
             f.write('\t\tfunctionNode.args = [];\n')
@@ -130,12 +133,12 @@ def build_node_group_tree(node_group: 'arm.nodes_logic.ArmLogicTree', f: TextIO,
     # Get names of group input and out nodes if they exist
     for node in node_group.nodes:
         if node.bl_idname == 'LNGroupInputsNode':
-            group_input_name = group_node_name + '_' + tree_name + arm.node_utils.get_export_node_name(node)
+            group_input_name = f'{group_node_name}_{tree_name}{arm.node_utils.get_export_node_name(node)}'
         if node.bl_idname == 'LNGroupOutputsNode':
-            group_output_name = group_node_name + '_' + tree_name + arm.node_utils.get_export_node_name(node)
+            group_output_name = f'{group_node_name}_{tree_name}{arm.node_utils.get_export_node_name(node)}'
 
     for node in root_nodes:
-        build_node(node, f, group_node_name + '_' + tree_name)
+        build_node(node, f, f'{group_node_name}_{tree_name}')
     node_group.arm_cached = True
     return group_input_name, group_output_name
 
@@ -176,14 +179,8 @@ def build_node(node: bpy.types.Node, f: TextIO, name_prefix: str = None) -> Opti
             return parsed_ids[parse_id]
         parsed_ids[parse_id] = name
 
-    # Check if node already exists
     if name in parsed_nodes:
-        # Check if node groups were parsed
-        if not link_group:
-            return name
-        else:
-            return group_output_name
-
+        return name if not link_group else group_output_name
     parsed_nodes.append(name)
 
     if not link_group:
@@ -243,10 +240,19 @@ def build_node(node: bpy.types.Node, f: TextIO, name_prefix: str = None) -> Opti
                 n = n.inputs[0].links[0].from_node
             if not unconnected:
                 # Ignore warnings if "Any" socket type is used
-                if inp.bl_idname != 'ArmAnySocket' and socket.bl_idname != 'ArmAnySocket':
-                    if (inp.bl_idname == 'ArmNodeSocketAction' and socket.bl_idname != 'ArmNodeSocketAction') or \
-                            (socket.bl_idname == 'ArmNodeSocketAction' and inp.bl_idname != 'ArmNodeSocketAction'):
-                        arm.log.warn(f'Sockets do not match in logic node tree "{group_name}": node "{node.name}", socket "{inp.name}"')
+                if (
+                    inp.bl_idname != 'ArmAnySocket'
+                    and socket.bl_idname != 'ArmAnySocket'
+                    and (
+                        inp.bl_idname == 'ArmNodeSocketAction'
+                        and socket.bl_idname != 'ArmNodeSocketAction'
+                    )
+                    or (
+                        socket.bl_idname == 'ArmNodeSocketAction'
+                        and inp.bl_idname != 'ArmNodeSocketAction'
+                    )
+                ):
+                    arm.log.warn(f'Sockets do not match in logic node tree "{group_name}": node "{node.name}", socket "{inp.name}"')
 
                 inp_name = build_node(n, f, name_prefix)
                 for i in range(0, len(n.outputs)):
@@ -255,7 +261,6 @@ def build_node(node: bpy.types.Node, f: TextIO, name_prefix: str = None) -> Opti
                         from_type = arm.node_utils.get_socket_type(socket)
                         break
 
-        # Not linked -> create node with default values
         else:
             inp_name = build_default_node(inp)
             inp_from = 0
@@ -317,15 +322,11 @@ def get_root_nodes(node_group):
     roots = []
     for node in node_group.nodes:
         if node.bl_idname == 'NodeUndefined':
-            arm.log.warn('Undefined logic nodes in ' + node_group.name)
+            arm.log.warn(f'Undefined logic nodes in {node_group.name}')
             return []
         if node.type == 'FRAME':
             continue
-        linked = False
-        for out in node.outputs:
-            if out.is_linked:
-                linked = True
-                break
+        linked = any(out.is_linked for out in node.outputs)
         if not linked: # Assume node with no connected outputs as roots
             roots.append(node)
     return roots
@@ -338,11 +339,7 @@ def build_default_node(inp: bpy.types.NodeSocket):
         # ArmCustomSockets need to implement get_default_value()
         default_value = inp.get_default_value()
     else:
-        if hasattr(inp, 'default_value'):
-            default_value = inp.default_value
-        else:
-            default_value = None
-
+        default_value = inp.default_value if hasattr(inp, 'default_value') else None
     default_value = arm.node_utils.haxe_format_socket_val(default_value, array_outer_brackets=False)
 
     inp_type = arm.node_utils.get_socket_type(inp)

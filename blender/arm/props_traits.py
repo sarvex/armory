@@ -48,12 +48,12 @@ def trigger_recompile(self, context):
 
 def update_trait_group(self, context):
     o = context.object if self.is_object else context.scene
-    if o == None:
+    if o is None:
         return
     i = o.arm_traitlist_index
     if i >= 0 and i < len(o.arm_traitlist):
         t = o.arm_traitlist[i]
-        if t.type_prop == 'Haxe Script' or t.type_prop == 'Bundled Script':
+        if t.type_prop in ['Haxe Script', 'Bundled Script']:
             t.name = t.class_name_prop
         elif t.type_prop == 'WebAssembly':
             t.name = t.webassembly_prop
@@ -64,7 +64,7 @@ def update_trait_group(self, context):
                 t.name = t.node_tree_prop.name
         # Fetch props
         if t.type_prop == 'Bundled Script' and t.name != '':
-            file_path = arm.utils.get_sdk_path() + '/armory/Sources/armory/trait/' + t.name + '.hx'
+            file_path = f'{arm.utils.get_sdk_path()}/armory/Sources/armory/trait/{t.name}.hx'
             if os.path.exists(file_path):
                 arm.utils.fetch_script_props(file_path)
                 arm.utils.fetch_prop(o)
@@ -74,10 +74,10 @@ def update_trait_group(self, context):
                 if col.name.startswith('Trait|') and o.name in col.objects:
                     col.objects.unlink(o)
             for t in o.arm_traitlist:
-                if 'Trait|' + t.name not in bpy.data.collections:
-                    col = bpy.data.collections.new('Trait|' + t.name)
+                if f'Trait|{t.name}' not in bpy.data.collections:
+                    col = bpy.data.collections.new(f'Trait|{t.name}')
                 else:
-                    col = bpy.data.collections['Trait|' + t.name]
+                    col = bpy.data.collections[f'Trait|{t.name}']
                 try:
                     col.objects.link(o)
                 except RuntimeError:
@@ -166,10 +166,7 @@ class ArmTraitListNewItem(bpy.types.Operator):
         row.prop(self, "type_prop", expand=True)
 
     def execute(self, context):
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         trait = obj.arm_traitlist.add()
         trait.is_object = self.is_object
         trait.type_prop = self.type_prop
@@ -186,12 +183,10 @@ class ArmTraitListDeleteItem(bpy.types.Operator):
     is_object: BoolProperty(name="", description="A name for this item", default=False)
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         obj = bpy.context.object
-        if obj is None:
-            return False
-        return len(obj.arm_traitlist) > 0
+        return False if obj is None else len(obj.arm_traitlist) > 0
 
     def execute(self, context):
         obj = bpy.context.object
@@ -227,12 +222,10 @@ class ArmTraitListDeleteItemScene(bpy.types.Operator):
     is_object: BoolProperty(name="", description="A name for this item", default=False)
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         obj = bpy.context.scene
-        if obj == None:
-            return False
-        return len(obj.arm_traitlist) > 0
+        return False if obj is None else len(obj.arm_traitlist) > 0
 
     def execute(self, context):
         obj = bpy.context.scene
@@ -265,28 +258,22 @@ class ArmTraitListMoveItem(bpy.types.Operator):
 
     def move_index(self):
         # Move index of an item render queue while clamping it
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         index = obj.arm_traitlist_index
         list_length = len(obj.arm_traitlist) - 1
         new_index = 0
 
-        if self.direction == 'UP':
-            new_index = index - 1
-        elif self.direction == 'DOWN':
+        if self.direction == 'DOWN':
             new_index = index + 1
 
+        elif self.direction == 'UP':
+            new_index = index - 1
         new_index = max(0, min(new_index, list_length))
         obj.arm_traitlist.move(index, new_index)
         obj.arm_traitlist_index = new_index
 
     def execute(self, context):
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         list = obj.arm_traitlist
         index = obj.arm_traitlist_index
 
@@ -317,11 +304,7 @@ class ArmEditScriptButton(bpy.types.Operator):
             print('Generating Krom project for IDE build configuration')
             make.build('krom')
 
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
-
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         item = obj.arm_traitlist[obj.arm_traitlist_index]
         pkg = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_package)
         # Replace the haxe package syntax with the os-dependent path syntax for opening
@@ -341,18 +324,22 @@ class ArmEditBundledScriptButton(bpy.types.Operator):
         if not arm.utils.check_saved(self):
             return {'CANCELLED'}
 
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         sdk_path = arm.utils.get_sdk_path()
         project_path = arm.utils.get_fp()
         item = obj.arm_traitlist[obj.arm_traitlist_index]
 
         pkg = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_package)
-        source_hx_path = os.path.join(sdk_path, 'armory', 'Sources', 'armory', 'trait', item.class_name_prop + '.hx')
+        source_hx_path = os.path.join(
+            sdk_path,
+            'armory',
+            'Sources',
+            'armory',
+            'trait',
+            f'{item.class_name_prop}.hx',
+        )
         target_dir = os.path.join(project_path, 'Sources', pkg)
-        target_hx_path = os.path.join(target_dir, item.class_name_prop + '.hx')
+        target_hx_path = os.path.join(target_dir, f'{item.class_name_prop}.hx')
 
         if not os.path.isfile(target_hx_path):
             if not os.path.exists(target_dir):
@@ -362,7 +349,7 @@ class ArmEditBundledScriptButton(bpy.types.Operator):
             with open(source_hx_path, encoding="utf-8") as sf:
                 sf.readline()
                 with open(target_hx_path, 'w', encoding="utf-8") as tf:
-                    tf.write('package ' + pkg + ';\n')
+                    tf.write(f'package {pkg}' + ';\n')
                     shutil.copyfileobj(sf, tf)
 
             arm.utils.fetch_script_names()
@@ -387,13 +374,11 @@ class ArmEditWasmScriptButton(bpy.types.Operator):
         if not arm.utils.check_saved(self):
             return {'CANCELLED'}
 
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
-
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         item = obj.arm_traitlist[obj.arm_traitlist_index]
-        wasm_path = os.path.join(arm.utils.get_fp(), 'Bundled', item.webassembly_prop + '.wasm')
+        wasm_path = os.path.join(
+            arm.utils.get_fp(), 'Bundled', f'{item.webassembly_prop}.wasm'
+        )
         arm.utils.open_editor(wasm_path)
         return{'FINISHED'}
 
@@ -423,12 +408,12 @@ class ArmoryGenerateNavmeshButton(bpy.types.Operator):
         # TODO: build tilecache here
         print("Started visualization generation")
         # For visualization
-        nav_full_path = arm.utils.get_fp_build() + '/compiled/Assets/navigation'
+        nav_full_path = f'{arm.utils.get_fp_build()}/compiled/Assets/navigation'
         if not os.path.exists(nav_full_path):
             os.makedirs(nav_full_path)
 
-        nav_mesh_name = 'nav_' + obj_eval.data.name
-        mesh_path = nav_full_path + '/' + nav_mesh_name + '.obj'
+        nav_mesh_name = f'nav_{obj_eval.data.name}'
+        mesh_path = f'{nav_full_path}/{nav_mesh_name}.obj'
 
         with open(mesh_path, 'w') as f:
             for v in export_mesh.vertices:
@@ -441,7 +426,7 @@ class ArmoryGenerateNavmeshButton(bpy.types.Operator):
                     f.write(" %d" % (i + 1))
                 f.write("\n")
 
-        buildnavjs_path = arm.utils.get_sdk_path() + '/lib/haxerecast/buildnavjs'
+        buildnavjs_path = f'{arm.utils.get_sdk_path()}/lib/haxerecast/buildnavjs'
 
         # append config values
         nav_config = {}
@@ -487,16 +472,13 @@ class ArmEditCanvasButton(bpy.types.Operator):
     is_object: BoolProperty(name="", description="A name for this item", default=False)
 
     def execute(self, context):
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         project_path = arm.utils.get_fp()
         item = obj.arm_traitlist[obj.arm_traitlist_index]
-        canvas_path = project_path + '/Bundled/canvas/' + item.canvas_name_prop + '.json'
+        canvas_path = f'{project_path}/Bundled/canvas/{item.canvas_name_prop}.json'
         sdk_path = arm.utils.get_sdk_path()
         ext = 'd3d11' if arm.utils.get_os() == 'win' else 'opengl'
-        armory2d_path = sdk_path + '/lib/armory_tools/armory2d/' + ext
+        armory2d_path = f'{sdk_path}/lib/armory_tools/armory2d/{ext}'
         krom_location, krom_path = arm.utils.krom_paths()
         os.chdir(krom_location)
         cpath = canvas_path.replace('\\', '/')
@@ -518,10 +500,7 @@ class ArmNewScriptDialog(bpy.types.Operator):
     class_name: StringProperty(name="Name", description="The class name")
 
     def execute(self, context):
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         self.class_name = self.class_name.replace(' ', '')
         write_data.write_traithx(self.class_name)
         arm.utils.fetch_script_names()
@@ -548,10 +527,7 @@ class ArmNewTreeNodeDialog(bpy.types.Operator):
     class_name: StringProperty(name="Name", description="The Node Tree name")
 
     def execute(self, context):
-        if self.is_object:
-            obj = context.object
-        else:
-            obj = context.scene
+        obj = context.object if self.is_object else context.scene
         self.class_name = self.class_name.replace(' ', '')
         # Create new node tree
         node_tree = bpy.data.node_groups.new(self.class_name, 'ArmLogicTreeType')
@@ -579,10 +555,7 @@ class ArmEditTreeNodeDialog(bpy.types.Operator):
     is_object: BoolProperty(name="Object Node Tree", description="Is this an object Node Tree?", default=False)
 
     def execute(self, context):
-        if self.is_object:
-            obj = context.object
-        else:
-            obj = context.scene
+        obj = context.object if self.is_object else context.scene
         # Check len node tree list
         if len(obj.arm_traitlist) > 0:
             item = obj.arm_traitlist[obj.arm_traitlist_index]
@@ -592,10 +565,12 @@ class ArmEditTreeNodeDialog(bpy.types.Operator):
                 areas = context_screen.areas
                 for area in areas:
                     for space in area.spaces:
-                        if space.type == 'NODE_EDITOR':
-                            if space.tree_type == 'ArmLogicTreeType':
-                                # Set Node Tree
-                                space.node_tree = item.node_tree_prop
+                        if (
+                            space.type == 'NODE_EDITOR'
+                            and space.tree_type == 'ArmLogicTreeType'
+                        ):
+                            # Set Node Tree
+                            space.node_tree = item.node_tree_prop
         return {'FINISHED'}
 
 class ArmGetTreeNodeDialog(bpy.types.Operator):
@@ -607,10 +582,7 @@ class ArmGetTreeNodeDialog(bpy.types.Operator):
     is_object: BoolProperty(name="Object Node Tree", description="Is this an object Node Tree?", default=False)
 
     def execute(self, context):
-        if self.is_object:
-            obj = context.object
-        else:
-            obj = context.scene
+        obj = context.object if self.is_object else context.scene
         # Check len node tree list
         if len(obj.arm_traitlist) > 0:
             item = obj.arm_traitlist[obj.arm_traitlist_index]
@@ -620,10 +592,13 @@ class ArmGetTreeNodeDialog(bpy.types.Operator):
                 areas = context_screen.areas
                 for area in areas:
                     for space in area.spaces:
-                        if space.type == 'NODE_EDITOR':
-                            if space.tree_type == 'ArmLogicTreeType' and space.node_tree is not None:
-                                # Set Node Tree in Item
-                                item.node_tree_prop = space.node_tree
+                        if (
+                            space.type == 'NODE_EDITOR'
+                            and space.tree_type == 'ArmLogicTreeType'
+                            and space.node_tree is not None
+                        ):
+                            # Set Node Tree in Item
+                            item.node_tree_prop = space.node_tree
         return {'FINISHED'}
 
 class ArmNewCanvasDialog(bpy.types.Operator):
@@ -636,10 +611,7 @@ class ArmNewCanvasDialog(bpy.types.Operator):
     canvas_name: StringProperty(name="Name", description="The canvas name")
 
     def execute(self, context):
-        if self.is_object:
-            obj = bpy.context.object
-        else:
-            obj = bpy.context.scene
+        obj = bpy.context.object if self.is_object else bpy.context.scene
         self.canvas_name = self.canvas_name.replace(' ', '')
         write_data.write_canvasjson(self.canvas_name)
         arm.utils.fetch_script_names()
@@ -786,18 +758,13 @@ class ARM_OT_CopyTraitsFromActive(bpy.types.Operator):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        show_dialog = False
-
         # Test if there is a target object which has traits that would
         # get overwritten
         source_obj = bpy.context.active_object
-        for target_object in bpy.context.selected_objects:
-            if source_obj == target_object:
-                continue
-            else:
-                if target_object.arm_traitlist:
-                    show_dialog = True
-
+        show_dialog = any(
+            source_obj != target_object and target_object.arm_traitlist
+            for target_object in bpy.context.selected_objects
+        )
         if show_dialog:
             context.window_manager.popover(self.__class__.draw_message_box, ui_units_x=16)
         else:
@@ -818,11 +785,7 @@ def draw_traits_panel(layout: bpy.types.UILayout, obj: Union[bpy.types.Object, b
     layout.use_property_split = True
     layout.use_property_decorate = False
 
-    # Make the list bigger when there are a few traits
-    num_rows = 2
-    if len(obj.arm_traitlist) > 1:
-        num_rows = 4
-
+    num_rows = 4 if len(obj.arm_traitlist) > 1 else 2
     row = layout.row()
     row.template_list("ARM_UL_TraitList", "The_List", obj, "arm_traitlist", obj, "arm_traitlist_index", rows=num_rows)
 
@@ -837,7 +800,7 @@ def draw_traits_panel(layout: bpy.types.UILayout, obj: Union[bpy.types.Object, b
     op.is_object = is_object
 
     col.separator()
-    
+
     col.menu("ARM_MT_context_menu", icon='DOWNARROW_HLT', text="")
 
     if len(obj.arm_traitlist) > 1:
@@ -857,37 +820,38 @@ def draw_traits_panel(layout: bpy.types.UILayout, obj: Union[bpy.types.Object, b
         row.alignment = 'EXPAND'
         row.scale_y = 1.2
 
-        if item.type_prop == 'Haxe Script' or item.type_prop == 'Bundled Script':
-            if item.type_prop == 'Haxe Script':
-                row.operator("arm.new_script", icon="FILE_NEW").is_object = is_object
-                column = row.column(align=True)
-                column.enabled = item.class_name_prop != ''
-                column.operator("arm.edit_script", icon_value=ICON_HAXE).is_object = is_object
-
-            # Bundled scripts
-            else:
-                if item.class_name_prop == 'NavMesh':
-                    row.operator("arm.generate_navmesh", icon="UV_VERTEXSEL")
-                else:
-                    row.enabled = item.class_name_prop != ''
-                    row.operator("arm.edit_bundled_script", icon_value=ICON_HAXE).is_object = is_object
+        if item.type_prop == 'Haxe Script':
+            row.operator("arm.new_script", icon="FILE_NEW").is_object = is_object
+            column = row.column(align=True)
+            column.enabled = item.class_name_prop != ''
+            column.operator("arm.edit_script", icon_value=ICON_HAXE).is_object = is_object
 
             refresh_op = "arm.refresh_object_scripts" if is_object else "arm.refresh_scripts"
             row.operator(refresh_op, text="Refresh", icon="FILE_REFRESH")
 
             # Default props
             row = layout.row()
-            if item.type_prop == 'Haxe Script':
-                row.prop_search(item, "class_name_prop", bpy.data.worlds['Arm'], "arm_scripts_list", text="Class")
+            row.prop_search(item, "class_name_prop", bpy.data.worlds['Arm'], "arm_scripts_list", text="Class")
+        elif item.type_prop == 'Bundled Script':
+            if item.class_name_prop == 'NavMesh':
+                row.operator("arm.generate_navmesh", icon="UV_VERTEXSEL")
             else:
-                row.prop_search(item, "class_name_prop", bpy.data.worlds['Arm'], "arm_bundled_scripts_list", text="Class")
+                row.enabled = item.class_name_prop != ''
+                row.operator("arm.edit_bundled_script", icon_value=ICON_HAXE).is_object = is_object
+
+            refresh_op = "arm.refresh_object_scripts" if is_object else "arm.refresh_scripts"
+            row.operator(refresh_op, text="Refresh", icon="FILE_REFRESH")
+
+            # Default props
+            row = layout.row()
+            row.prop_search(item, "class_name_prop", bpy.data.worlds['Arm'], "arm_bundled_scripts_list", text="Class")
 
         elif item.type_prop == 'WebAssembly':
             row.operator("arm.new_wasm", icon="FILE_NEW")
 
             column = row.column(align=True)
             column.enabled = item.webassembly_prop != ''
-            
+
             column.operator("arm.edit_wasm_script", icon_value=ICON_WASM).is_object = is_object
 
             refresh_op = "arm.refresh_object_scripts" if is_object else "arm.refresh_scripts"
@@ -915,10 +879,13 @@ def draw_traits_panel(layout: bpy.types.UILayout, obj: Union[bpy.types.Object, b
                 areas = bpy.context.screen.areas
                 for area in areas:
                     for space in area.spaces:
-                        if space.type == 'NODE_EDITOR':
-                            if space.tree_type == 'ArmLogicTreeType' and space.node_tree is not None:
-                                is_editor_active = True
-                                break
+                        if (
+                            space.type == 'NODE_EDITOR'
+                            and space.tree_type == 'ArmLogicTreeType'
+                            and space.node_tree is not None
+                        ):
+                            is_editor_active = True
+                            break
                         if is_editor_active:
                             break
 
@@ -937,20 +904,23 @@ def draw_traits_panel(layout: bpy.types.UILayout, obj: Union[bpy.types.Object, b
 
         # =====================
         # Draw trait properties
-        if (item.type_prop == 'Haxe Script' or item.type_prop == 'Bundled Script') and item.class_name_prop != '':
-            if item.arm_traitpropslist:
-                layout.label(text="Trait Properties:")
-                if item.arm_traitpropswarnings:
-                    box = layout.box()
-                    box.label(text=f"Warnings ({len(item.arm_traitpropswarnings)}):", icon="ERROR")
-                    col = box.column(align=True)
+        if (
+            item.type_prop in ['Haxe Script', 'Bundled Script']
+            and item.class_name_prop != ''
+            and item.arm_traitpropslist
+        ):
+            layout.label(text="Trait Properties:")
+            if item.arm_traitpropswarnings:
+                box = layout.box()
+                box.label(text=f"Warnings ({len(item.arm_traitpropswarnings)}):", icon="ERROR")
+                col = box.column(align=True)
 
-                    for warning in item.arm_traitpropswarnings:
-                        col.label(text=f'"{warning.propName}": {warning.warning}')
+                for warning in item.arm_traitpropswarnings:
+                    col.label(text=f'"{warning.propName}": {warning.warning}')
 
-                propsrows = max(len(item.arm_traitpropslist), 6)
-                row = layout.row()
-                row.template_list("ARM_UL_PropList", "The_List", item, "arm_traitpropslist", item, "arm_traitpropslist_index", rows=propsrows)
+            propsrows = max(len(item.arm_traitpropslist), 6)
+            row = layout.row()
+            row.template_list("ARM_UL_PropList", "The_List", item, "arm_traitpropslist", item, "arm_traitpropslist_index", rows=propsrows)
 
 def register():
     bpy.utils.register_class(ArmTraitListItem)

@@ -30,7 +30,7 @@ class ARM_UL_BakeList(bpy.types.UIList):
             row.prop(item, "obj", text="", emboss=False, icon=custom_icon)
             col = row.column()
             col.alignment = 'RIGHT'
-            col.label(text=str(item.res_x) + 'x' + str(item.res_y))
+            col.label(text=f'{str(item.res_x)}x{str(item.res_y)}')
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -54,7 +54,7 @@ class ArmBakeListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         scn = context.scene
         return len(scn.arm_bakelist) > 0
@@ -129,7 +129,7 @@ class ArmBakeButton(bpy.types.Operator):
         for o in scn.arm_bakelist:
             ob = o.obj
             if len(ob.material_slots) == 0:
-                if not 'MaterialDefault' in bpy.data.materials:
+                if 'MaterialDefault' not in bpy.data.materials:
                     mat = bpy.data.materials.new(name='MaterialDefault')
                     mat.use_nodes = True
                 else:
@@ -143,15 +143,15 @@ class ArmBakeButton(bpy.types.Operator):
                 # Temp material already exists
                 if slot.material.name.endswith('_temp'):
                     continue
-                n = slot.material.name + '_' + ob.name + '_temp'
-                if not n in bpy.data.materials:
+                n = f'{slot.material.name}_{ob.name}_temp'
+                if n not in bpy.data.materials:
                     slot.material = slot.material.copy()
                     slot.material.name = n
 
         # Images for baking
         for o in scn.arm_bakelist:
             ob = o.obj
-            img_name = ob.name + '_baked'
+            img_name = f'{ob.name}_baked'
             sc = scn.arm_bakelist_scale / 100
             rx = o.res_x * sc
             ry = o.res_y * sc
@@ -183,7 +183,7 @@ class ArmBakeButton(bpy.types.Operator):
         for o in scn.arm_bakelist:
             ob = o.obj
             uv_layers = ob.data.uv_layers
-            if not 'UVMap_baked' in uv_layers:
+            if 'UVMap_baked' not in uv_layers:
                 uvmap = uv_layers.new(name='UVMap_baked')
                 uv_layers.active_index = len(uv_layers) - 1
                 obs.active = ob
@@ -212,10 +212,10 @@ class ArmBakeButton(bpy.types.Operator):
         # TODO: use single mat per object
         for o in scn.arm_bakelist:
             ob = o.obj
-            img_name = ob.name + '_baked'
+            img_name = f'{ob.name}_baked'
             for slot in ob.material_slots:
-                n = slot.material.name[:-5] + '_baked'
-                if not n in bpy.data.materials:
+                n = f'{slot.material.name[:-5]}_baked'
+                if n not in bpy.data.materials:
                     mat = bpy.data.materials.new(name=n)
                     mat.use_nodes = True
                     mat.use_fake_user = True
@@ -256,18 +256,17 @@ class ArmBakeApplyButton(bpy.types.Operator):
         # Remove leftover _baked materials for removed objects
         for mat in bpy.data.materials:
             if mat.name.endswith('_baked'):
-                has_user = False
-                for ob in bpy.data.objects:
-                    if ob.type == 'MESH' and mat.name.endswith('_' + ob.name + '_baked'):
-                        has_user = True
-                        break
+                has_user = any(
+                    ob.type == 'MESH' and mat.name.endswith(f'_{ob.name}_baked')
+                    for ob in bpy.data.objects
+                )
                 if not has_user:
                     bpy.data.materials.remove(mat, do_unlink=True)
         # Recache lightmaps
         arm.assets.invalidate_unpacked_data(None, None)
         for o in scn.arm_bakelist:
             ob = o.obj
-            img_name = ob.name + '_baked'
+            img_name = f'{ob.name}_baked'
             # Save images
             bpy.data.images[img_name].pack()
             #bpy.data.images[img_name].save()
@@ -276,7 +275,9 @@ class ArmBakeApplyButton(bpy.types.Operator):
                 # Remove temp material
                 if mat.name.endswith('_temp'):
                     old = slot.material
-                    slot.material = bpy.data.materials[old.name.split('_' + ob.name)[0] + "_" + ob.name + "_baked"]
+                    slot.material = bpy.data.materials[
+                        f"{old.name.split(f'_{ob.name}')[0]}_{ob.name}_baked"
+                    ]
                     bpy.data.materials.remove(old, do_unlink=True)
         # Restore uv slots
         for o in scn.arm_bakelist:
@@ -317,10 +318,7 @@ class ArmBakeAddSelectedButton(bpy.types.Operator):
     bl_label = 'Add Selected'
 
     def contains(self, scn, ob):
-        for o in scn.arm_bakelist:
-            if o == ob:
-                return True
-        return False
+        return any(o == ob for o in scn.arm_bakelist)
 
     def execute(self, context):
         scn = context.scene

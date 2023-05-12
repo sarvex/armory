@@ -42,10 +42,7 @@ def set_project_html5_start_browser(self, value):
 
 def set_project_name(self, value):
     value = arm.utils.safestr(value)
-    if len(value) > 0:
-        self['arm_project_name'] = value
-    else:
-        self['arm_project_name'] = arm.utils.blend_name()
+    self['arm_project_name'] = value if len(value) > 0 else arm.utils.blend_name()
 
 def get_project_name(self):
     return self.get('arm_project_name', arm.utils.blend_name())
@@ -79,11 +76,7 @@ def set_project_bundle(self, value):
     value = arm.utils.safestr(value)
     v_a = value.strip().split('.')
     if (len(value) > 0) and (not value.isdigit()) and (not value[0].isdigit()) and (len(v_a) > 1):
-        check = True
-        for item in v_a:
-            if (item.isdigit()) or (item[0].isdigit()):
-                check = False
-                break
+        check = not any((item.isdigit()) or (item[0].isdigit()) for item in v_a)
         if check:
             self['arm_project_bundle'] = value
 
@@ -93,9 +86,8 @@ def get_project_bundle(self):
 def get_android_build_apk(self):
     if len(arm.utils.get_android_sdk_root_path()) > 0:
         return self.get('arm_project_android_build_apk', False)
-    else:
-        set_android_build_apk(self, False)
-        return False
+    set_android_build_apk(self, False)
+    return False
 
 def set_android_build_apk(self, value):
     self['arm_project_android_build_apk'] = value
@@ -107,10 +99,7 @@ def set_android_build_apk(self, value):
 
 def get_win_build_arch(self):
     if self.get('arm_project_win_build_arch', -1) == -1:
-        if arm.utils.get_os_is_windows_64():
-            return 0
-        else:
-            return 1
+        return 0 if arm.utils.get_os_is_windows_64() else 1
     else:
         return self.get('arm_project_win_build_arch', 'x64')
 
@@ -118,11 +107,8 @@ def set_win_build_arch(self, value):
     self['arm_project_win_build_arch'] = value
 
 def set_win_build(self, value):
-    if arm.utils.get_os_is_windows():
-        self['arm_project_win_build'] = value
-    else:
-        self['arm_project_win_build'] = 0
-    if (self['arm_project_win_build'] == 0) or (self['arm_project_win_build'] == 1):
+    self['arm_project_win_build'] = value if arm.utils.get_os_is_windows() else 0
+    if self['arm_project_win_build'] in [0, 1]:
         wrd = bpy.data.worlds['Arm']
         wrd.arm_project_win_build_open = False
 

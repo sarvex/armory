@@ -169,13 +169,9 @@ class ArmoryExporter:
 
         if wrd.arm_physics == 'Enabled':
             cls.export_physics = True
-        cls.export_navigation = False
-        if wrd.arm_navigation == 'Enabled':
-            cls.export_navigation = True
+        cls.export_navigation = wrd.arm_navigation == 'Enabled'
         cls.export_ui = False
-        cls.export_network = False
-        if wrd.arm_network == 'Enabled':
-            cls.export_network = True
+        cls.export_network = wrd.arm_network == 'Enabled'
 
     @staticmethod
     def write_matrix(matrix):
@@ -186,7 +182,7 @@ class ArmoryExporter:
 
     def get_meshes_file_path(self, object_id: str, compressed=False) -> str:
         index = self.filepath.rfind('/')
-        mesh_fp = self.filepath[:(index + 1)] + 'meshes/'
+        mesh_fp = f'{self.filepath[:index + 1]}meshes/'
 
         if not os.path.exists(mesh_fp):
             os.makedirs(mesh_fp)
@@ -203,39 +199,41 @@ class ArmoryExporter:
         if not hasattr(mesh, 'shape_keys'):
             return False
 
-        shape_keys = mesh.shape_keys
-        if not shape_keys:
+        if shape_keys := mesh.shape_keys:
+            return (
+                False
+                if len(shape_keys.key_blocks) < 2
+                else any(
+                    not shape_key.mute for shape_key in shape_keys.key_blocks[1:]
+                )
+            )
+        else:
             return False
-        if len(shape_keys.key_blocks) < 2:
-            return False
-        for shape_key in shape_keys.key_blocks[1:]:
-            if not shape_key.mute:
-                return True
-        return False
 
     @staticmethod
     def get_morph_uv_index(mesh):
-        i = 0
-        for uv_layer in mesh.uv_layers:
+        for i, uv_layer in enumerate(mesh.uv_layers):
             if uv_layer.name == 'UVMap_shape_key':
                 return i
-            i +=1
 
     def find_bone(self, name: str) -> Optional[Tuple[bpy.types.Bone, Dict]]:
         """Finds the bone reference (a tuple containing the bone object
         and its data) by the given name and returns it."""
-        for bone_ref in self.bobject_bone_array.items():
-            if bone_ref[0].name == name:
-                return bone_ref
-        return None
+        return next(
+            (
+                bone_ref
+                for bone_ref in self.bobject_bone_array.items()
+                if bone_ref[0].name == name
+            ),
+            None,
+        )
 
     @staticmethod
     def collect_bone_animation(armature: bpy.types.Object, name: str) -> List[bpy.types.FCurve]:
         path = f"pose.bones[\"{name}\"]."
 
         if armature.animation_data:
-            action = armature.animation_data.action
-            if action:
+            if action := armature.animation_data.action:
                 return [fcurve for fcurve in action.fcurves if fcurve.data_path.startswith(path)]
 
         return []
@@ -244,9 +242,8 @@ class ArmoryExporter:
         rpdat = arm.utils.get_rp()
         bobject_ref = self.bobject_bone_array.get(bone)
 
-        if rpdat.arm_use_armature_deform_only:
-            if not bone.use_deform:
-                return
+        if rpdat.arm_use_armature_deform_only and not bone.use_deform:
+            return
 
         if bobject_ref:
             o['type'] = STRUCT_IDENTIFIER[bobject_ref["objectType"].value]
@@ -324,15 +321,18 @@ class ArmoryExporter:
             if action is not None:
                 action_name = arm.utils.safestr(arm.utils.asset_name(action))
 
-                fp = self.get_meshes_file_path('action_' + action_name, compressed=ArmoryExporter.compress_enabled)
+                fp = self.get_meshes_file_path(
+                    f'action_{action_name}',
+                    compressed=ArmoryExporter.compress_enabled,
+                )
                 assets.add(fp)
                 ext = '.lz4' if ArmoryExporter.compress_enabled else ''
-                if ext == '' and not wrd.arm_minimize:
+                if not ext and not wrd.arm_minimize:
                     ext = '.json'
 
                 if 'object_actions' not in o:
                     o['object_actions'] = []
-                o['object_actions'].append('action_' + action_name + ext)
+                o['object_actions'].append(f'action_{action_name}{ext}')
 
                 frame_range = self.calculate_anim_frame_range(action)
                 out_anim = {
@@ -365,7 +365,7 @@ class ArmoryExporter:
 
                     out_anim['tracks'].append(out_track)
 
-                if len(unresolved_data_paths) > 0:
+                if unresolved_data_paths:
                     warning = (
                         f'The action "{action_name}" has fcurve channels with data paths that could not be resolved.'
                         ' This can be caused by the following things:\n'
@@ -378,19 +378,18 @@ class ArmoryExporter:
                         warning += '\n  To see the list of unresolved data paths please recompile with Armory Project > Verbose Output enabled.'
                     log.warn(warning)
 
-                if True:  # not action.arm_cached or not os.path.exists(fp):
-                    if wrd.arm_verbose_output:
-                        print('Exporting object action ' + action_name)
+                if wrd.arm_verbose_output:
+                    print(f'Exporting object action {action_name}')
 
-                    out_object_action = {
-                        'name': action_name,
-                        'anim': out_anim,
-                        'type': 'object',
-                        'data_ref': '',
-                        'transform': None
-                    }
-                    action_file = {'objects': [out_object_action]}
-                    arm.utils.write_arm(fp, action_file)
+                out_object_action = {
+                    'name': action_name,
+                    'anim': out_anim,
+                    'type': 'object',
+                    'data_ref': '',
+                    'transform': None
+                }
+                action_file = {'objects': [out_object_action]}
+                arm.utils.write_arm(fp, action_file)
 
     def process_bone(self, bone: bpy.types.Bone) -> None:
         if ArmoryExporter.export_all_flag or bone.select:
@@ -420,8 +419,7 @@ class ArmoryExporter:
             }
 
             if bobject.type == "ARMATURE":
-                armature: bpy.types.Armature = bobject.data
-                if armature:
+                if armature := bobject.data:
                     for bone in armature.bones:
                         if not bone.parent:
                             self.process_bone(bone)
@@ -520,31 +518,35 @@ class ArmoryExporter:
     @staticmethod
     def get_view3d_area() -> Optional[bpy.types.Area]:
         screen = bpy.context.window.screen
-        for area in screen.areas:
-            if area.type == 'VIEW_3D':
-                return area
-        return None
+        return next((area for area in screen.areas if area.type == 'VIEW_3D'), None)
 
     @staticmethod
     def get_viewport_view_matrix() -> Optional[Matrix]:
         play_area = ArmoryExporter.get_view3d_area()
         if play_area is None:
             return None
-        for space in play_area.spaces:
-            if space.type == 'VIEW_3D':
-                return space.region_3d.view_matrix
-        return None
+        return next(
+            (
+                space.region_3d.view_matrix
+                for space in play_area.spaces
+                if space.type == 'VIEW_3D'
+            ),
+            None,
+        )
 
     @staticmethod
     def get_viewport_projection_matrix() -> Tuple[Optional[Matrix], bool]:
         play_area = ArmoryExporter.get_view3d_area()
         if play_area is None:
             return None, False
-        for space in play_area.spaces:
-            if space.type == 'VIEW_3D':
-                # return space.region_3d.perspective_matrix # pesp = window * view
-                return space.region_3d.window_matrix, space.region_3d.is_perspective
-        return None, False
+        return next(
+            (
+                (space.region_3d.window_matrix, space.region_3d.is_perspective)
+                for space in play_area.spaces
+                if space.type == 'VIEW_3D'
+            ),
+            (None, False),
+        )
 
     def write_bone_matrices(self, scene, action):
         # profile_time = time.time()
@@ -554,8 +556,7 @@ class ArmoryExporter:
                 scene.frame_set(i)
                 for track in self.bone_tracks:
                     values, pose_bone = track[0], track[1]
-                    parent = pose_bone.parent
-                    if parent:
+                    if parent := pose_bone.parent:
                         values += ArmoryExporter.write_matrix((parent.matrix.inverted_safe() @ pose_bone.matrix))
                     else:
                         values += ArmoryExporter.write_matrix(pose_bone.matrix)
@@ -566,7 +567,7 @@ class ArmoryExporter:
         for mat in materials:
             if mat is None:
                 continue
-            baked_mat = mat.name + '_' + bobject.name + '_baked'
+            baked_mat = f'{mat.name}_{bobject.name}_baked'
             if baked_mat in bpy.data.materials:
                 return True
         return False
@@ -589,7 +590,7 @@ class ArmoryExporter:
             elif bobject.arm_tilesheet != '':
                 variant_suffix = '_armtile'
 
-            if variant_suffix == '':
+            if not variant_suffix:
                 continue
 
             for slot in bobject.material_slots:
@@ -624,7 +625,7 @@ class ArmoryExporter:
                     continue
 
                 matslots.append(slot)
-                mat_name = slot.material.name + '_armpart'
+                mat_name = f'{slot.material.name}_armpart'
                 mat = bpy.data.materials.get(mat_name)
                 if mat is None:
                     mat = slot.material.copy()
@@ -640,7 +641,7 @@ class ArmoryExporter:
         mat = slot.material
         # Pick up backed material if present
         if mat is not None:
-            baked_mat = mat.name + '_' + bobject.name + '_baked'
+            baked_mat = f'{mat.name}_{bobject.name}_baked'
             if baked_mat in bpy.data.materials:
                 mat = bpy.data.materials[baked_mat]
         return mat

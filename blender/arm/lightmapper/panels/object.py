@@ -42,11 +42,9 @@ class TLM_PT_ObjectMenu(bpy.types.Panel):
                         row = layout.row()
                         item = scene.TLM_AtlasList[scene.TLM_AtlasListItem]
                         row.prop_search(obj.TLM_ObjectProperties, "tlm_atlas_pointer", scene, "TLM_AtlasList", text='Atlas Group')
-                        row = layout.row()
                     else:
                         row = layout.label(text="Add Atlas Groups from the scene lightmapping settings.")
-                        row = layout.row()
-
+                    row = layout.row()
                 else:
                     row = layout.row()
                     row.prop(obj.TLM_ObjectProperties, "tlm_postpack_object")
@@ -58,11 +56,9 @@ class TLM_PT_ObjectMenu(bpy.types.Panel):
                         row = layout.row()
                         item = scene.TLM_PostAtlasList[scene.TLM_PostAtlasListItem]
                         row.prop_search(obj.TLM_ObjectProperties, "tlm_postatlas_pointer", scene, "TLM_PostAtlasList", text='Atlas Group')
-                        row = layout.row()
-
                     else:
                         row = layout.label(text="Add Atlas Groups from the scene lightmapping settings.")
-                        row = layout.row()
+                    row = layout.row()
 
                 row.prop(obj.TLM_ObjectProperties, "tlm_mesh_unwrap_margin")
                 row = layout.row()
@@ -75,11 +71,9 @@ class TLM_PT_ObjectMenu(bpy.types.Panel):
                     if obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Gaussian":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_gaussian_strength")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     elif obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Box":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_box_strength")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     elif obj.TLM_ObjectProperties.tlm_mesh_filtering_mode == "Bilateral":
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_bilateral_diameter")
                         row = layout.row(align=True)
@@ -87,12 +81,10 @@ class TLM_PT_ObjectMenu(bpy.types.Panel):
                         row = layout.row(align=True)
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_bilateral_coordinate_deviation")
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                     else:
                         row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_median_kernel", expand=True)
                         row = layout.row(align=True)
-                        row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
-
+                    row.prop(obj.TLM_ObjectProperties, "tlm_mesh_filtering_iterations")
                 #If UV Packer installed
                 if "UV-Packer" in bpy.context.preferences.addons.keys():
                     row.prop(obj.TLM_ObjectProperties, "tlm_use_uv_packer")
@@ -117,7 +109,7 @@ class TLM_PT_MaterialMenu(bpy.types.Panel):
         layout.use_property_decorate = False
 
         mat = bpy.context.material
-        if mat == None:
+        if mat is None:
             return
 
         if obj.type == "MESH":

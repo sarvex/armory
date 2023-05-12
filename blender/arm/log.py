@@ -47,7 +47,7 @@ def clear(clear_warnings=False, clear_errors=False):
         num_errors = 0
 
 def format_text(text):
-    return (text[:80] + '..') if len(text) > 80 else text # Limit str size
+    return f'{text[:80]}..' if len(text) > 80 else text
 
 def log(text, color=None):
     print(colorize(text, color))
@@ -61,7 +61,7 @@ def info(text):
     info_text = format_text(text)
 
 def print_warn(text):
-    print(colorize('WARNING: ' + text, WARN))
+    print(colorize(f'WARNING: {text}', WARN))
 
 def warn(text):
     global num_warnings
@@ -71,7 +71,7 @@ def warn(text):
 def error(text):
     global num_errors
     num_errors += 1
-    print(colorize('ERROR: ' + text, ERROR), file=sys.stderr)
+    print(colorize(f'ERROR: {text}', ERROR), file=sys.stderr)
 
 def colorize(text:str, color=None):
     if bpy.context.area is not None and bpy.context.area.type == 'CONSOLE':

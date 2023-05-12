@@ -33,20 +33,29 @@ def add_armory_library(sdk_path: str, name: str, rel_path=False) -> str:
     if rel_path:
         sdk_path = '../' + os.path.relpath(sdk_path, arm.utils.get_fp()).replace('\\', '/')
 
-    return ('project.addLibrary("' + sdk_path + '/' + name + '");\n').replace('\\', '/').replace('//', '/')
+    return (
+        (f'project.addLibrary("{sdk_path}/{name}' + '");\n')
+        .replace('\\', '/')
+        .replace('//', '/')
+    )
 
 
 def add_assets(path: str, quality=1.0, use_data_dir=False, rel_path=False) -> str:
     if not bpy.data.worlds['Arm'].arm_minimize and path.endswith('.arm'):
-        path = path[:-4] + '.json'
+        path = f'{path[:-4]}.json'
 
     if rel_path:
         path = os.path.relpath(path, arm.utils.get_fp()).replace('\\', '/')
 
     notinlist = not path.endswith('.ttf') # TODO
-    s = 'project.addAssets("' + path + '", { notinlist: ' + str(notinlist).lower() + ' '
+    s = (
+        f'project.addAssets("{path}'
+        + '", { notinlist: '
+        + str(notinlist).lower()
+        + ' '
+    )
     if quality < 1.0:
-        s += ', quality: ' + str(quality)
+        s += f', quality: {str(quality)}'
     if use_data_dir:
         s += ', destination: "data/{name}"'
     s += '});\n'

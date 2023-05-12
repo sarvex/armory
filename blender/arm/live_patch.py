@@ -73,7 +73,7 @@ def patch_export():
     arm.assets.invalidate_enabled = False
 
     with arm.utils.WorkingDir(arm.utils.get_fp()):
-        asset_path = arm.utils.get_fp_build() + '/compiled/Assets/' + arm.utils.safestr(bpy.context.scene.name) + '.arm'
+        asset_path = f'{arm.utils.get_fp_build()}/compiled/Assets/{arm.utils.safestr(bpy.context.scene.name)}.arm'
         ArmoryExporter.export_scene(bpy.context, asset_path, scene=bpy.context.scene)
 
         dir_std_shaders_dst = os.path.join(arm.utils.build_dir(), 'compiled', 'Shaders', 'std')
@@ -84,12 +84,17 @@ def patch_export():
         node_path = arm.utils.get_node_path()
         khamake_path = arm.utils.get_khamake_path()
         cmd = [
-            node_path, khamake_path, 'krom',
-            '--shaderversion', '330',
-            '--parallelAssetConversion', '4',
-            '--to', arm.utils.build_dir() + '/debug',
+            node_path,
+            khamake_path,
+            'krom',
+            '--shaderversion',
+            '330',
+            '--parallelAssetConversion',
+            '4',
+            '--to',
+            f'{arm.utils.build_dir()}/debug',
             '--nohaxe',
-            '--noproject'
+            '--noproject',
         ]
 
         arm.assets.invalidate_enabled = True
@@ -106,7 +111,7 @@ def patch_done():
 def write_patch(js: str):
     """Write the given javascript code to 'krom.patch'."""
     global patch_id
-    with open(arm.utils.get_fp_build() + '/debug/krom/krom.patch', 'w', encoding='utf-8') as f:
+    with open(f'{arm.utils.get_fp_build()}/debug/krom/krom.patch', 'w', encoding='utf-8') as f:
         patch_id += 1
         f.write(str(patch_id) + '\n')
         f.write(js)

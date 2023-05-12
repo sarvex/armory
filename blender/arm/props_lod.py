@@ -2,7 +2,7 @@ import bpy
 from bpy.props import *
 
 def update_size_prop(self, context):
-    if context.object == None:
+    if context.object is None:
         return
     mdata = context.object.data
     i = mdata.arm_lodlist_index

@@ -50,7 +50,7 @@ def load(filepath):
     # Parse version header
     first_line = lines.pop(0)
     if first_line not in PROFILES:
-        raise "Unsupported Profile: " + first_line
+        raise f"Unsupported Profile: {first_line}"
 
     # Extracts the keywords
     keywords = {}
@@ -67,7 +67,7 @@ def load(filepath):
                 key, val = match.group(1, 2)
                 keywords[key.strip()] = val.strip()
             else:
-                raise "Invalid keyword line: " + line
+                raise f"Invalid keyword line: {line}"
 
     # Next line should be TILT=NONE according to the spec
     if lines.pop(0) != "TILT=NONE":

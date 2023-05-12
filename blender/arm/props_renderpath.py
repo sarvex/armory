@@ -23,11 +23,11 @@ atlas_sizes = [ ('256', '256', '256'),
 
 def atlas_sizes_from_min(min_size: int) -> list:
     """ Create an enum list of atlas sizes from a minimal size """
-    sizes = []
-    for i in range(len(atlas_sizes)):
-        if int(atlas_sizes[i][0]) > min_size:
-            sizes.append(atlas_sizes[i])
-    return sizes
+    return [
+        atlas_sizes[i]
+        for i in range(len(atlas_sizes))
+        if int(atlas_sizes[i][0]) > min_size
+    ]
 
 def update_spot_sun_atlas_size_options(scene: bpy.types.Scene, context: bpy.types.Context) -> list:
     wrd = bpy.data.worlds['Arm']
@@ -633,11 +633,14 @@ class ArmRPListItem(bpy.types.PropertyGroup):
     @staticmethod
     def get_by_name(name: str) -> Optional['ArmRPListItem']:
         wrd = bpy.data.worlds['Arm']
-        # Assume unique rp names
-        for i in range(len(wrd.arm_rplist)):
-            if wrd.arm_rplist[i].name == name:
-                return wrd.arm_rplist[i]
-        return None
+        return next(
+            (
+                wrd.arm_rplist[i]
+                for i in range(len(wrd.arm_rplist))
+                if wrd.arm_rplist[i].name == name
+            ),
+            None,
+        )
 
 
 class ARM_UL_RPList(bpy.types.UIList):
@@ -679,7 +682,7 @@ class ArmRPListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         mdata = bpy.data.worlds['Arm']
         return len(mdata.arm_rplist) > 0

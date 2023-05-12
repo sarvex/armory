@@ -72,14 +72,18 @@ def get_installed_version(version_major: str, re_fetch=False) -> Optional[dict[s
 
 
 def get_supported_version(version_major: str) -> Optional[dict[str, str]]:
-    for version in supported_versions:
-        if version[0] == version_major:
-            return {
+    return next(
+        (
+            {
                 'version_major': version[0],
                 'year': version[1],
-                'name': version[2]
+                'name': version[2],
             }
-    return None
+            for version in supported_versions
+            if version[0] == version_major
+        ),
+        None,
+    )
 
 
 def fetch_installed_vs(silent=False) -> bool:
@@ -121,21 +125,20 @@ def fetch_installed_vs(silent=False) -> bool:
 
 def open_project_in_vs(version_major: str, version_min_full: Optional[str] = None) -> bool:
     installation = get_installed_version(version_major, re_fetch=True)
-    if installation is None:
-        if version_min_full is not None:
-            # Try whether other installed versions are supported, versions
-            # are already sorted in descending order
-            for installed_version in _installed_versions:
-                if (installed_version['version_full_ints'] >= version_full_to_ints(version_min_full)
-                        and int(installed_version['version_major']) < int(version_major)):
-                    installation = installed_version
-                    break
+    if installation is None and version_min_full is not None:
+        # Try whether other installed versions are supported, versions
+        # are already sorted in descending order
+        for installed_version in _installed_versions:
+            if (installed_version['version_full_ints'] >= version_full_to_ints(version_min_full)
+                    and int(installed_version['version_major']) < int(version_major)):
+                installation = installed_version
+                break
 
-        # Still nothing found, warn for version_major
-        if installation is None:
-            vs_info = get_supported_version(version_major)
-            log.warn(f'Could not open project in Visual Studio, {vs_info["name"]} was not found.')
-            return False
+    # Still nothing found, warn for version_major
+    if installation is None:
+        vs_info = get_supported_version(version_major)
+        log.warn(f'Could not open project in Visual Studio, {vs_info["name"]} was not found.')
+        return False
 
     sln_path = get_sln_path()
     devenv_path = os.path.join(installation['path'], 'Common7', 'IDE', 'devenv.exe')
@@ -159,7 +162,13 @@ def enable_vsvars_env(version_major: str, done: Callable[[], None]) -> bool:
 
     wrd = bpy.data.worlds['Arm']
     arch_bits = '64' if wrd.arm_project_win_build_arch == 'x64' else '32'
-    vcvars_path = os.path.join(installation['path'], 'VC', 'Auxiliary', 'Build', 'vcvars' + arch_bits + '.bat')
+    vcvars_path = os.path.join(
+        installation['path'],
+        'VC',
+        'Auxiliary',
+        'Build',
+        f'vcvars{arch_bits}.bat',
+    )
 
     if not os.path.isfile(vcvars_path):
         log.error(
@@ -191,21 +200,22 @@ def compile_in_vs(version_major: str, done: Callable[[], None]) -> bool:
 
     projectfile_path = get_vcxproj_path()
 
-    cmd = [msbuild_path, projectfile_path]
-
     # Arguments
     platform = 'x64' if wrd.arm_project_win_build_arch == 'x64' else 'win32'
     log_param = wrd.arm_project_win_build_log
     if log_param == 'WarningsAndErrorsOnly':
         log_param = 'WarningsOnly;ErrorsOnly'
 
-    cmd.extend([
-        '-m:' + str(wrd.arm_project_win_build_cpu),
-        '-clp:' + log_param,
-        '/p:Configuration=' + wrd.arm_project_win_build_mode,
-        '/p:Platform=' + platform
-    ])
-
+    cmd = [
+        msbuild_path,
+        projectfile_path,
+        *[
+            f'-m:{str(wrd.arm_project_win_build_cpu)}',
+            f'-clp:{log_param}',
+            f'/p:Configuration={wrd.arm_project_win_build_mode}',
+            f'/p:Platform={platform}',
+        ],
+    ]
     print('\nCompiling the project ' + projectfile_path)
     state.proc_publish_build = arm.make.run_proc(cmd, done)
     state.redraw_ui = True
@@ -266,19 +276,19 @@ def get_project_path() -> str:
 
 def get_project_name():
     wrd = bpy.data.worlds['Arm']
-    return arm.utils.safesrc(wrd.arm_project_name + '-' + wrd.arm_project_version)
+    return arm.utils.safesrc(f'{wrd.arm_project_name}-{wrd.arm_project_version}')
 
 
 def get_sln_path() -> str:
     project_path = get_project_path()
     project_name = get_project_name()
-    return os.path.join(project_path, project_name + '.sln')
+    return os.path.join(project_path, f'{project_name}.sln')
 
 
 def get_vcxproj_path() -> str:
     project_name = get_project_name()
     project_path = get_project_path()
-    return os.path.join(project_path, project_name + '.vcxproj')
+    return os.path.join(project_path, f'{project_name}.vcxproj')
 
 
 def fetch_project_version() -> tuple[Optional[str], Optional[str], Optional[str]]:
@@ -313,8 +323,7 @@ def fetch_project_version() -> tuple[Optional[str], Optional[str], Optional[str]
                         return None, None, 'err_invalid_version_major'
 
                 elif linenum == 3 and version_major >= 12:
-                    match = _REGEX_SLN_MIN_VERSION.match(line)
-                    if match:
+                    if match := _REGEX_SLN_MIN_VERSION.match(line):
                         version_min_full = match.group(1)
                         break
 

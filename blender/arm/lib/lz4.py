@@ -121,11 +121,9 @@ class LZ4:
                     o_pos += 1
                     l -= 255
                 o_buf[o_pos] = l
-                o_pos += 1
             else:
                 o_buf[o_pos] = (l_len << 4) | token
-                o_pos += 1
-
+            o_pos += 1
             # Write literals
             while l_len > 0:
                 l_len -= 1
@@ -166,11 +164,9 @@ class LZ4:
                 l -= 255
 
             o_buf[o_pos] = l
-            o_pos += 1
-
         else:
             o_buf[o_pos] = l_len << 4
-            o_pos += 1
+        o_pos += 1
 
         while l_len > 0:
             l_len -= 1

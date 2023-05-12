@@ -60,24 +60,23 @@ def write_arm(filepath, output):
             f.write(np.int64(LZ4.encode_bound(len(packed))).tobytes())
 
             f.write(LZ4.encode(packed))
+    elif bpy.data.worlds['Arm'].arm_minimize:
+        with open(filepath, 'wb') as f:
+            f.write(arm.lib.armpack.packb(output))
     else:
-        if bpy.data.worlds['Arm'].arm_minimize:
-            with open(filepath, 'wb') as f:
-                f.write(arm.lib.armpack.packb(output))
-        else:
-            filepath_json = filepath.split('.arm')[0] + '.json'
-            with open(filepath_json, 'w') as f:
-                f.write(json.dumps(output, sort_keys=True, indent=4, cls=NumpyEncoder))
+        filepath_json = filepath.split('.arm')[0] + '.json'
+        with open(filepath_json, 'w') as f:
+            f.write(json.dumps(output, sort_keys=True, indent=4, cls=NumpyEncoder))
 
 def unpack_image(image, path, file_format='JPEG'):
-    print('Armory Info: Unpacking to ' + path)
+    print(f'Armory Info: Unpacking to {path}')
     image.filepath_raw = path
     image.file_format = file_format
     image.save()
 
 def convert_image(image, path, file_format='JPEG'):
     # Convert image to compatible format
-    print('Armory Info: Converting to ' + path)
+    print(f'Armory Info: Converting to {path}')
     ren = bpy.context.scene.render
     orig_quality = ren.image_settings.quality
     orig_file_format = ren.image_settings.file_format
@@ -112,31 +111,30 @@ def blend_name():
     return bpy.path.basename(bpy.context.blend_data.filepath).rsplit('.', 1)[0]
 
 def build_dir():
-    return 'build_' + safestr(blend_name())
+    return f'build_{safestr(blend_name())}'
 
 
 def get_fp() -> str:
     wrd = bpy.data.worlds['Arm']
     if wrd.arm_project_root != '':
         return bpy.path.abspath(wrd.arm_project_root)
+    s = None
+    if use_local_sdk and bpy.data.filepath == '':
+        s = os.getcwd()
     else:
-        s = None
-        if use_local_sdk and bpy.data.filepath == '':
-            s = os.getcwd()
-        else:
-            s = bpy.data.filepath.split(os.path.sep)
-            s.pop()
-            s = os.path.sep.join(s)
-        if get_os_is_windows() and len(s) == 2 and s[1] == ':':
-            # If the project is located at a drive root (C:/ for example),
-            # then s = "C:". If joined later with another path, no path
-            # separator is added by default because C:some_path is valid
-            # Windows path syntax (some_path is then relative to the CWD on the
-            # C drive). We prevent this by manually adding the path separator
-            # in these cases. Please refer to the Python doc of os.path.join()
-            # for more details.
-            s += os.path.sep
-        return s
+        s = bpy.data.filepath.split(os.path.sep)
+        s.pop()
+        s = os.path.sep.join(s)
+    if get_os_is_windows() and len(s) == 2 and s[1] == ':':
+        # If the project is located at a drive root (C:/ for example),
+        # then s = "C:". If joined later with another path, no path
+        # separator is added by default because C:some_path is valid
+        # Windows path syntax (some_path is then relative to the CWD on the
+        # C drive). We prevent this by manually adding the path separator
+        # in these cases. Please refer to the Python doc of os.path.join()
+        # for more details.
+        s += os.path.sep
+    return s
 
 
 def get_fp_build():
@@ -176,11 +174,10 @@ def get_os_is_windows_64() -> bool:
         return True
     if os.environ['PROCESSOR_ARCHITECTURE'].endswith('64'):
         return True
-    if 'PROGRAMFILES(X86)' in os.environ:
-        if os.environ['PROGRAMW6432'] is not None:
-            return True
-    else:
+    if 'PROGRAMFILES(X86)' not in os.environ:
         return False
+    if os.environ['PROGRAMW6432'] is not None:
+        return True
 
 
 def get_gapi():
@@ -197,20 +194,18 @@ def is_gapi_gl_es() -> bool:
     """Return whether the currently targeted graphics API is using OpenGL ES."""
     wrd = bpy.data.worlds['Arm']
 
-    if state.is_export:
-        item_exporter = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
-
-        # See Khamake's ShaderCompiler.findType() and krafix::Target.es in krafix.cpp ("target.es")
-        if state.target == 'android-hl':
-            return item_exporter.arm_gapi_android == 'opengl'
-        if state.target == 'ios-hl':
-            return item_exporter.arm_gapi_ios == 'opengl'
-        elif state.target == 'html5':
-            return True
-        return False
-
-    else:
+    if not state.is_export:
         return wrd.arm_runtime == 'Browser'
+    item_exporter = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
+
+    # See Khamake's ShaderCompiler.findType() and krafix::Target.es in krafix.cpp ("target.es")
+    if state.target == 'android-hl':
+        return item_exporter.arm_gapi_android == 'opengl'
+    if state.target == 'html5':
+        return True
+    elif state.target == 'ios-hl':
+        return item_exporter.arm_gapi_ios == 'opengl'
+    return False
 
 
 def get_rp() -> arm.props_renderpath.ArmRPListItem:
@@ -226,12 +221,12 @@ use_local_sdk = False
 def get_sdk_path():
     addon_prefs = get_arm_preferences()
     if use_local_sdk:
-        return os.path.normpath(get_fp() + '/armsdk/')
+        return os.path.normpath(f'{get_fp()}/armsdk/')
     else:
         return os.path.normpath(addon_prefs.sdk_path)
 
 def get_last_commit():
-    p = get_sdk_path() + 'armory/.git/refs/heads/main'
+    p = f'{get_sdk_path()}armory/.git/refs/heads/main'
 
     try:
         file = open(p, 'r')
@@ -321,46 +316,44 @@ def get_pref_or_default(prop_name: str, default: Any) -> Any:
 
 def get_node_path():
     if get_os() == 'win':
-        return get_sdk_path() + '/nodejs/node.exe'
+        return f'{get_sdk_path()}/nodejs/node.exe'
     elif get_os() == 'mac':
-        return get_sdk_path() + '/nodejs/node-osx'
+        return f'{get_sdk_path()}/nodejs/node-osx'
     else:
-        return get_sdk_path() + '/nodejs/node-linux64'
+        return f'{get_sdk_path()}/nodejs/node-linux64'
 
 def get_kha_path():
-    if os.path.exists('Kha'):
-        return 'Kha'
-    return get_sdk_path() + '/Kha'
+    return 'Kha' if os.path.exists('Kha') else f'{get_sdk_path()}/Kha'
 
 def get_haxe_path():
     if get_os() == 'win':
-        return get_kha_path() + '/Tools/windows_x64/haxe.exe'
+        return f'{get_kha_path()}/Tools/windows_x64/haxe.exe'
     elif get_os() == 'mac':
-        return get_kha_path() + '/Tools/macos/haxe'
+        return f'{get_kha_path()}/Tools/macos/haxe'
     else:
-        return get_kha_path() + '/Tools/linux_x64/haxe'
+        return f'{get_kha_path()}/Tools/linux_x64/haxe'
 
 def get_khamake_path():
-    return get_kha_path() + '/make'
+    return f'{get_kha_path()}/make'
 
 def krom_paths():
     sdk_path = get_sdk_path()
     if arm.utils.get_os() == 'win':
-        krom_location = sdk_path + '/Krom'
-        krom_path = krom_location + '/Krom.exe'
+        krom_location = f'{sdk_path}/Krom'
+        krom_path = f'{krom_location}/Krom.exe'
     elif arm.utils.get_os() == 'mac':
-        krom_location = sdk_path + '/Krom/Krom.app/Contents/MacOS'
-        krom_path = krom_location + '/Krom'
+        krom_location = f'{sdk_path}/Krom/Krom.app/Contents/MacOS'
+        krom_path = f'{krom_location}/Krom'
     else:
-        krom_location = sdk_path + '/Krom'
-        krom_path = krom_location + '/Krom'
+        krom_location = f'{sdk_path}/Krom'
+        krom_path = f'{krom_location}/Krom'
     return krom_location, krom_path
 
 def fetch_bundled_script_names():
     wrd = bpy.data.worlds['Arm']
     wrd.arm_bundled_scripts_list.clear()
 
-    with WorkingDir(get_sdk_path() + '/armory/Sources/armory/trait'):
+    with WorkingDir(f'{get_sdk_path()}/armory/Sources/armory/trait'):
         for file in glob.glob('*.hx'):
             wrd.arm_bundled_scripts_list.add().name = file.rsplit('.', 1)[0]
 
@@ -474,7 +467,7 @@ def get_prop_type_from_value(value: str):
             # "" is required, " alone will not work
             if len(value) > 1 and value.startswith(("\"", "'")) and value.endswith(("\"", "'")):
                 return "String"
-            if value in ("true", "false"):
+            if value in {"true", "false"}:
                 return "Bool"
             if value.startswith("new "):
                 value = value.split()[1].split("(")[0]
@@ -495,8 +488,14 @@ def get_type_default_value(prop_type: str):
         return 0
     if prop_type == "Float":
         return 0.0
-    if prop_type == "String" or prop_type in (
-            "Object", "CameraObject", "LightObject", "MeshObject", "SpeakerObject"):
+    if prop_type in {
+        "String",
+        "Object",
+        "CameraObject",
+        "LightObject",
+        "MeshObject",
+        "SpeakerObject",
+    }:
         return ""
     if prop_type == "Bool":
         return False
@@ -504,10 +503,7 @@ def get_type_default_value(prop_type: str):
         return [0.0, 0.0]
     if prop_type == "Vec3":
         return [0.0, 0.0, 0.0]
-    if prop_type == "Vec4":
-        return [0.0, 0.0, 0.0, 0.0]
-
-    return None
+    return [0.0, 0.0, 0.0, 0.0] if prop_type == "Vec4" else None
 
 def fetch_script_names():
     if bpy.data.filepath == "":
@@ -529,7 +525,7 @@ def fetch_script_names():
 
     # Canvas
     wrd.arm_canvas_list.clear()
-    canvas_path = get_fp() + '/Bundled/canvas'
+    canvas_path = f'{get_fp()}/Bundled/canvas'
     if os.path.isdir(canvas_path):
         with WorkingDir(canvas_path):
             for file in glob.glob('*.json'):
@@ -543,7 +539,7 @@ def fetch_wasm_names():
     wrd = bpy.data.worlds['Arm']
     # WASM modules
     wrd.arm_wasm_list.clear()
-    sources_path = get_fp() + '/Bundled'
+    sources_path = f'{get_fp()}/Bundled'
     if os.path.isdir(sources_path):
         with WorkingDir(sources_path):
             for file in glob.glob('*.wasm'):
@@ -566,7 +562,7 @@ def fetch_trait_props():
 def fetch_prop(o: Union[bpy.types.Object, bpy.types.Scene]):
     for item in o.arm_traitlist:
         if item.type_prop == 'Bundled Script':
-            name = 'armory.trait.' + item.name
+            name = f'armory.trait.{item.name}'
         else:
             name = item.name
         if name not in script_props:
@@ -623,7 +619,7 @@ def fetch_bundled_trait_props():
     for o in bpy.data.objects:
         for t in o.arm_traitlist:
             if t.type_prop == 'Bundled Script':
-                file_path = get_sdk_path() + '/armory/Sources/armory/trait/' + t.name + '.hx'
+                file_path = f'{get_sdk_path()}/armory/Sources/armory/trait/{t.name}.hx'
                 if os.path.exists(file_path):
                     fetch_script_props(file_path)
                     fetch_prop(o)
@@ -634,10 +630,10 @@ def update_trait_collections():
             bpy.data.collections.remove(col)
     for o in bpy.data.objects:
         for t in o.arm_traitlist:
-            if 'Trait|' + t.name not in bpy.data.collections:
-                col = bpy.data.collections.new('Trait|' + t.name)
+            if f'Trait|{t.name}' not in bpy.data.collections:
+                col = bpy.data.collections.new(f'Trait|{t.name}')
             else:
-                col = bpy.data.collections['Trait|' + t.name]
+                col = bpy.data.collections[f'Trait|{t.name}']
             col.objects.link(o)
 
 
@@ -681,9 +677,8 @@ def unique_str_for_list(items: list, name_attr: str, wanted_name: str, ignore_it
     # Get base name without numeric suffix
     base_name = wanted_name
     dot_pos = base_name.rfind('.')
-    if dot_pos != -1:
-        if base_name[dot_pos + 1:].isdecimal():
-            base_name = base_name[:dot_pos]
+    if dot_pos != -1 and base_name[dot_pos + 1 :].isdecimal():
+        base_name = base_name[:dot_pos]
 
     num_collisions = 0
     out_name = base_name
@@ -720,7 +715,7 @@ def merge_into_collection(col_src, col_dst, clear_dst=True):
 def safesrc(s):
     s = safestr(s).replace('.', '_').replace('-', '_').replace(' ', '')
     if s[0].isdigit():
-        s = '_' + s
+        s = f'_{s}'
     return s
 
 def safestr(s: str) -> str:
@@ -734,16 +729,15 @@ def get_haxe_json_string(d: dict) -> str:
     s = str(d)
     s = s.replace('True', 'true')
     s = s.replace('False', 'false')
-    s = s.replace("'", '"')
-    return s
+    return s.replace("'", '"')
 
 def asset_name(bdata):
-    if bdata == None:
+    if bdata is None:
         return None
     s = bdata.name
     # Append library name if linked
     if bdata.library is not None:
-        s += '_' + bdata.library.name
+        s += f'_{bdata.library.name}'
     return s
 
 def asset_path(s):
@@ -767,23 +761,23 @@ def get_project_scene_name():
 def get_active_scene() -> bpy.types.Scene:
     wrd = bpy.data.worlds['Arm']
     if not state.is_export:
-        if wrd.arm_play_scene is None:
-            return bpy.context.scene
-        return wrd.arm_play_scene
-    else:
-        item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
-        return item.arm_project_scene
+        return bpy.context.scene if wrd.arm_play_scene is None else wrd.arm_play_scene
+    item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
+    return item.arm_project_scene
 
 def logic_editor_space(context_screen=None):
-    if context_screen == None:
+    if context_screen is None:
         context_screen = bpy.context.screen
     if context_screen != None:
         areas = context_screen.areas
         for area in areas:
             for space in area.spaces:
-                if space.type == 'NODE_EDITOR':
-                    if space.node_tree != None and space.node_tree.bl_idname == 'ArmLogicTreeType':
-                        return space
+                if (
+                    space.type == 'NODE_EDITOR'
+                    and space.node_tree != None
+                    and space.node_tree.bl_idname == 'ArmLogicTreeType'
+                ):
+                    return space
     return None
 
 def voxel_support():
@@ -817,42 +811,35 @@ def check_path(s):
     for c in r'[];><&*%=+@!#^()|?^':
         if c in s:
             return False
-    for c in s:
-        if ord(c) > 127:
-            return False
-    return True
+    return all(ord(c) <= 127 for c in s)
 
 def check_sdkpath(self):
     s = get_sdk_path()
-    if not check_path(s):
-        msg = f"SDK path '{s}' contains special characters. Please move SDK to different path for now."
-        self.report({"ERROR"}, msg) if self is not None else log.warn(msg)
-        return False
-    else:
+    if check_path(s):
         return True
+    msg = f"SDK path '{s}' contains special characters. Please move SDK to different path for now."
+    self.report({"ERROR"}, msg) if self is not None else log.warn(msg)
+    return False
 
 def check_projectpath(self):
     s = get_fp()
-    if not check_path(s):
-        msg = f"Project path '{s}' contains special characters, build process may fail."
-        self.report({"ERROR"}, msg) if self is not None else log.warn(msg)
-        return False
-    else:
+    if check_path(s):
         return True
+    msg = f"Project path '{s}' contains special characters, build process may fail."
+    self.report({"ERROR"}, msg) if self is not None else log.warn(msg)
+    return False
 
 def disp_enabled(target):
     rpdat = get_rp()
     if rpdat.arm_rp_displacement == 'Tessellation':
-        return target == 'krom' or target == 'native'
+        return target in ['krom', 'native']
     return rpdat.arm_rp_displacement != 'Off'
 
 def is_object_animation_enabled(bobject):
     # Checks if animation is present and enabled
     if bobject.arm_animation_enabled == False or bobject.type == 'BONE' or bobject.type == 'ARMATURE':
         return False
-    if bobject.animation_data and bobject.animation_data.action:
-        return True
-    return False
+    return bool(bobject.animation_data and bobject.animation_data.action)
 
 def is_bone_animation_enabled(bobject):
     # Checks if animation is present and enabled for parented armature
@@ -862,18 +849,22 @@ def is_bone_animation_enabled(bobject):
         # Check for present actions
         adata = bobject.parent.animation_data
         has_actions = adata != None and adata.action != None
-        if not has_actions and adata != None:
-            if hasattr(adata, 'nla_tracks') and adata.nla_tracks != None:
-                for track in adata.nla_tracks:
-                    if track.strips == None:
+        if (
+            not has_actions
+            and adata != None
+            and hasattr(adata, 'nla_tracks')
+            and adata.nla_tracks != None
+        ):
+            for track in adata.nla_tracks:
+                if track.strips is None:
+                    continue
+                for strip in track.strips:
+                    if strip.action is None:
                         continue
-                    for strip in track.strips:
-                        if strip.action == None:
-                            continue
-                        has_actions = True
-                        break
-                    if has_actions:
-                        break
+                    has_actions = True
+                    break
+                if has_actions:
+                    break
         if adata != None and has_actions:
             return True
     return False
@@ -890,21 +881,22 @@ def export_morph_targets(bobject: bpy.types.Object) -> bool:
     if not hasattr(bobject.data, 'shape_keys'):
         return False
 
-    shape_keys = bobject.data.shape_keys
-    if not shape_keys:
+    if shape_keys := bobject.data.shape_keys:
+        return (
+            False
+            if len(shape_keys.key_blocks) < 2
+            else any(
+                (not shape_key.mute) for shape_key in shape_keys.key_blocks[1:]
+            )
+        )
+    else:
         return False
-    if len(shape_keys.key_blocks) < 2:
-        return False
-    for shape_key in shape_keys.key_blocks[1:]:
-            if(not shape_key.mute):
-                return True
-    return False
 
 def export_vcols(bobject: bpy.types.Object) -> bool:
-    for material in bobject.data.materials:
-        if material is not None and material.export_vcols:
-            return True
-    return False
+    return any(
+        material is not None and material.export_vcols
+        for material in bobject.data.materials
+    )
 
 def open_editor(hx_path=None):
     ide_bin = get_ide_bin()
@@ -923,43 +915,39 @@ def open_editor(hx_path=None):
         elif env_editor is not None:
             ide_bin = env_editor
 
-        # No environment variables set -> Let the system decide how to
-        # open the file
         else:
-            webbrowser.open('file://' + hx_path)
+            webbrowser.open(f'file://{hx_path}')
             return
 
-    if os.path.exists(ide_bin):
-        args = [ide_bin, arm.utils.get_fp()]
+    if not os.path.exists(ide_bin):
+        raise FileNotFoundError(f'Code editor executable not found: {ide_bin}. You can change the path in the Armory preferences.')
+    args = [ide_bin, arm.utils.get_fp()]
 
         # Sublime Text
-        if get_code_editor() == 'sublime':
-            project_name = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_name)
-            subl_project_path = arm.utils.get_fp() + f'/{project_name}.sublime-project'
+    if get_code_editor() == 'sublime':
+        project_name = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_name)
+        subl_project_path = f'{arm.utils.get_fp()}/{project_name}.sublime-project'
 
-            if not os.path.exists(subl_project_path):
-                generate_sublime_project(subl_project_path)
+        if not os.path.exists(subl_project_path):
+            generate_sublime_project(subl_project_path)
 
-            args += ['--project', subl_project_path]
+        args += ['--project', subl_project_path]
 
-            args.append('--add')
+        args.append('--add')
 
-        args.append(hx_path)
+    args.append(hx_path)
 
-        if arm.utils.get_os() == 'mac':
-            argstr = ""
+    if arm.utils.get_os() == 'mac':
+        argstr = ""
 
-            for arg in args:
-                if not (arg.startswith('-') or arg.startswith('--')):
-                    argstr += '"' + arg + '"'
-                argstr += ' '
+        for arg in args:
+            if not arg.startswith('-') and not arg.startswith('--'):
+                argstr += f'"{arg}"'
+            argstr += ' '
 
-            subprocess.Popen(argstr[:-1], shell=True)
-        else:
-            subprocess.Popen(args)
-
+        subprocess.Popen(argstr[:-1], shell=True)
     else:
-        raise FileNotFoundError(f'Code editor executable not found: {ide_bin}. You can change the path in the Armory preferences.')
+        subprocess.Popen(args)
 
 def open_folder(folder_path: str):
     if arm.utils.get_os() == 'win':
@@ -969,7 +957,7 @@ def open_folder(folder_path: str):
     elif arm.utils.get_os() == 'linux':
         subprocess.run(['xdg-open', folder_path])
     else:
-        webbrowser.open('file://' + folder_path)
+        webbrowser.open(f'file://{folder_path}')
 
 def generate_sublime_project(subl_project_path):
     """Generates a [project_name].sublime-project file."""
@@ -990,8 +978,7 @@ def generate_sublime_project(subl_project_path):
 def def_strings_to_array(strdefs):
     defs = strdefs.split('_')
     defs = defs[1:]
-    defs = ['_' + d for d in defs] # Restore _
-    return defs
+    return [f'_{d}' for d in defs]
 
 def get_kha_target(target_name): # TODO: remove
     if target_name == 'macos-hl':
@@ -1005,28 +992,22 @@ def get_kha_target(target_name): # TODO: remove
 
 def target_to_gapi(arm_project_target: str) -> str:
     # TODO: align target names
-    if arm_project_target == 'krom':
-        return 'arm_gapi_' + arm.utils.get_os()
-    elif arm_project_target == 'krom-windows':
-        return 'arm_gapi_win'
-    elif arm_project_target == 'windows-hl':
-        return 'arm_gapi_win'
-    elif arm_project_target == 'krom-linux':
-        return 'arm_gapi_linux'
-    elif arm_project_target == 'linux-hl':
-        return 'arm_gapi_linux'
-    elif arm_project_target == 'krom-macos':
-        return 'arm_gapi_mac'
-    elif arm_project_target == 'macos-hl':
-        return 'arm_gapi_mac'
-    elif arm_project_target == 'android-hl':
+    if arm_project_target == 'android-hl':
         return 'arm_gapi_android'
     elif arm_project_target == 'ios-hl':
         return 'arm_gapi_ios'
+    elif arm_project_target == 'krom':
+        return f'arm_gapi_{arm.utils.get_os()}'
+    elif arm_project_target in {'krom-linux', 'linux-hl'}:
+        return 'arm_gapi_linux'
+    elif arm_project_target in {'krom-macos', 'macos-hl'}:
+        return 'arm_gapi_mac'
+    elif arm_project_target in {'krom-windows', 'windows-hl'}:
+        return 'arm_gapi_win'
     elif arm_project_target == 'node':
         return 'arm_gapi_html5'
-    else: # html5, custom
-        return 'arm_gapi_' + arm_project_target
+    else:
+        return f'arm_gapi_{arm_project_target}'
 
 
 def check_default_props():
@@ -1059,11 +1040,13 @@ class PermissionName(Enum):
 # Add permission for target android
 def add_permission_target_android(permission_name_enum):
     wrd = bpy.data.worlds['Arm']
-    check = False
-    for item in wrd.arm_exporter_android_permission_list:
-        if (item.arm_android_permissions.upper() == str(permission_name_enum.value).upper()):
-            check = True
-            break
+    check = any(
+        (
+            item.arm_android_permissions.upper()
+            == str(permission_name_enum.value).upper()
+        )
+        for item in wrd.arm_exporter_android_permission_list
+    )
     if not check:
         wrd.arm_exporter_android_permission_list.add()
         wrd.arm_exporter_android_permission_list[len(wrd.arm_exporter_android_permission_list) - 1].arm_android_permissions = str(permission_name_enum.value).upper()
@@ -1073,11 +1056,10 @@ def get_project_android_build_apk():
     return wrd.arm_project_android_build_apk
 
 def get_android_sdk_root_path():
-    if os.getenv('ANDROID_SDK_ROOT') == None:
-        addon_prefs = get_arm_preferences()
-        return '' if not hasattr(addon_prefs, 'android_sdk_root_path') else addon_prefs.android_sdk_root_path
-    else:
+    if os.getenv('ANDROID_SDK_ROOT') is not None:
         return os.getenv('ANDROID_SDK_ROOT')
+    addon_prefs = get_arm_preferences()
+    return '' if not hasattr(addon_prefs, 'android_sdk_root_path') else addon_prefs.android_sdk_root_path
 
 def get_android_apk_copy_path():
     addon_prefs = get_arm_preferences()
@@ -1092,7 +1074,7 @@ def get_android_emulators_list():
     items = []
     path_file = get_android_emulator_file()
     if len(path_file) > 0:
-        cmd = path_file + " -list-avds"
+        cmd = f"{path_file} -list-avds"
         if get_os_is_windows():
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         else:
@@ -1104,7 +1086,7 @@ def get_android_emulators_list():
             if output:
                 items.append(output.strip())
     else:
-        err = 'File "'+ path_file +'" not found.'
+        err = f'File "{path_file}" not found.'
     return items, err
 
 def get_android_emulator_path():
@@ -1121,7 +1103,11 @@ def get_android_emulator_file():
 
 def get_android_emulator_name():
     wrd = bpy.data.worlds['Arm']
-    return '' if not len(wrd.arm_project_android_list_avd.strip()) > 0 else wrd.arm_project_android_list_avd.strip()
+    return (
+        ''
+        if len(wrd.arm_project_android_list_avd.strip()) <= 0
+        else wrd.arm_project_android_list_avd.strip()
+    )
 
 def get_android_open_build_apk_directory():
     addon_prefs = get_arm_preferences()
@@ -1136,7 +1122,7 @@ def get_link_web_server():
     return '' if not hasattr(addon_prefs, 'link_web_server') else addon_prefs.link_web_server
 
 def compare_version_blender_arm():
-    return not (bpy.app.version[0] != 3 or bpy.app.version[1] != 3)
+    return bpy.app.version[0] == 3 and bpy.app.version[1] == 3
 
 def get_file_arm_version_tuple() -> tuple[int]:
     wrd = bpy.data.worlds['Arm']
@@ -1148,8 +1134,8 @@ def type_name_to_type(name: str) -> bpy.types.bpy_struct:
 
 def change_version_project(version: str) -> str:
     ver = version.strip().replace(' ', '').split('.')
-    v_i = int(ver[len(ver) - 1]) + 1
-    ver[len(ver) - 1] = str(v_i)
+    v_i = int(ver[-1]) + 1
+    ver[-1] = str(v_i)
     version = ''
     for i in ver:
         if len(version) > 0:

@@ -47,13 +47,14 @@ def reset():
     shaders_external = []
     shader_datas = []
     shader_passes = []
-    shader_cons = {}
-    shader_cons['mesh_vert'] = []
-    shader_cons['depth_vert'] = []
-    shader_cons['depth_frag'] = []
-    shader_cons['voxel_vert'] = []
-    shader_cons['voxel_frag'] = []
-    shader_cons['voxel_geom'] = []
+    shader_cons = {
+        'mesh_vert': [],
+        'depth_vert': [],
+        'depth_frag': [],
+        'voxel_vert': [],
+        'voxel_frag': [],
+        'voxel_geom': [],
+    }
 
 def add(asset_file):
     global assets
@@ -105,7 +106,9 @@ def add_shader_data(file):
 def add_shader_pass(data_name):
     global shader_passes
     # Shader data for passes are written into single shader_datas.arm file
-    add_shader_data(arm.utils.get_fp_build() + '/compiled/Shaders/shader_datas.arm')
+    add_shader_data(
+        f'{arm.utils.get_fp_build()}/compiled/Shaders/shader_datas.arm'
+    )
     if data_name not in shader_passes:
         shader_passes.append(data_name)
 
@@ -113,7 +116,7 @@ def add_shader_external(file):
     global shaders_external
     shaders_external.append(file)
     name = file.split('/')[-1].split('\\')[-1]
-    add_shader(arm.utils.get_fp_build() + '/compiled/Shaders/' + name)
+    add_shader(f'{arm.utils.get_fp_build()}/compiled/Shaders/{name}')
 
 invalidate_enabled = True # Disable invalidating during build process
 
@@ -127,43 +130,43 @@ def invalidate_shader_cache(self, context):
     if invalidate_enabled is False:
         return
     fp = arm.utils.get_fp_build()
-    if os.path.isdir(fp + '/compiled/Shaders'):
-        shutil.rmtree(fp + '/compiled/Shaders', onerror=remove_readonly)
-    if os.path.isdir(fp + '/debug/html5-resources'):
-        shutil.rmtree(fp + '/debug/html5-resources', onerror=remove_readonly)
-    if os.path.isdir(fp + '/krom-resources'):
-        shutil.rmtree(fp + '/krom-resources', onerror=remove_readonly)
-    if os.path.isdir(fp + '/debug/krom-resources'):
-        shutil.rmtree(fp + '/debug/krom-resources', onerror=remove_readonly)
-    if os.path.isdir(fp + '/windows-resources'):
-        shutil.rmtree(fp + '/windows-resources', onerror=remove_readonly)
-    if os.path.isdir(fp + '/linux-resources'):
-        shutil.rmtree(fp + '/linux-resources', onerror=remove_readonly)
-    if os.path.isdir(fp + '/osx-resources'):
-        shutil.rmtree(fp + '/osx-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/compiled/Shaders'):
+        shutil.rmtree(f'{fp}/compiled/Shaders', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/debug/html5-resources'):
+        shutil.rmtree(f'{fp}/debug/html5-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/krom-resources'):
+        shutil.rmtree(f'{fp}/krom-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/debug/krom-resources'):
+        shutil.rmtree(f'{fp}/debug/krom-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/windows-resources'):
+        shutil.rmtree(f'{fp}/windows-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/linux-resources'):
+        shutil.rmtree(f'{fp}/linux-resources', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/osx-resources'):
+        shutil.rmtree(f'{fp}/osx-resources', onerror=remove_readonly)
 
 def invalidate_compiled_data(self, context):
     global invalidate_enabled
     if invalidate_enabled is False:
         return
     fp = arm.utils.get_fp_build()
-    if os.path.isdir(fp + '/compiled'):
-        shutil.rmtree(fp + '/compiled', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/compiled'):
+        shutil.rmtree(f'{fp}/compiled', onerror=remove_readonly)
 
 def invalidate_mesh_data(self, context):
     fp = arm.utils.get_fp_build()
-    if os.path.isdir(fp + '/compiled/Assets/meshes'):
-        shutil.rmtree(fp + '/compiled/Assets/meshes', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/compiled/Assets/meshes'):
+        shutil.rmtree(f'{fp}/compiled/Assets/meshes', onerror=remove_readonly)
 
 def invalidate_envmap_data(self, context):
     fp = arm.utils.get_fp_build()
-    if os.path.isdir(fp + '/compiled/Assets/envmaps'):
-        shutil.rmtree(fp + '/compiled/Assets/envmaps', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/compiled/Assets/envmaps'):
+        shutil.rmtree(f'{fp}/compiled/Assets/envmaps', onerror=remove_readonly)
 
 def invalidate_unpacked_data(self, context):
     fp = arm.utils.get_fp_build()
-    if os.path.isdir(fp + '/compiled/Assets/unpacked'):
-        shutil.rmtree(fp + '/compiled/Assets/unpacked', onerror=remove_readonly)
+    if os.path.isdir(f'{fp}/compiled/Assets/unpacked'):
+        shutil.rmtree(f'{fp}/compiled/Assets/unpacked', onerror=remove_readonly)
 
 def invalidate_mesh_cache(self, context):
     if context.object is None or context.object.data is None:

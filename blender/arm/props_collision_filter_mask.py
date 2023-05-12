@@ -9,11 +9,9 @@ class ARM_PT_RbCollisionFilterMaskPanel(bpy.types.Panel):
     bl_parent_id = "ARM_PT_PhysicsPropsPanel"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         obj = context.object
-        if obj is None:
-            return False
-        return obj.rigid_body is not None
+        return False if obj is None else obj.rigid_body is not None
 
     def draw(self, context):
         layout = self.layout
@@ -27,7 +25,7 @@ class ARM_PT_RbCollisionFilterMaskPanel(bpy.types.Panel):
         col = layout.column()
         row = col.row()
         row.alignment = 'RIGHT'
-        row.label(text=f'Integer Mask Value: {str(int(col_mask, 2))}')
+        row.label(text=f'Integer Mask Value: {int(col_mask, 2)}')
 
 
 def register():

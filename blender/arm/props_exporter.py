@@ -29,32 +29,40 @@ def update_gapi_custom(self, context):
     assets.invalidate_compiled_data(self, context)
 
 def update_gapi_win(self, context):
-    if os.path.isdir(arm.utils.get_fp_build() + '/windows-build'):
-        shutil.rmtree(arm.utils.get_fp_build() + '/windows-build', onerror=remove_readonly)
+    if os.path.isdir(f'{arm.utils.get_fp_build()}/windows-build'):
+        shutil.rmtree(
+            f'{arm.utils.get_fp_build()}/windows-build',
+            onerror=remove_readonly,
+        )
     bpy.data.worlds['Arm'].arm_recompile = True
     assets.invalidate_compiled_data(self, context)
 
 def update_gapi_linux(self, context):
-    if os.path.isdir(arm.utils.get_fp_build() + '/linux-build'):
-        shutil.rmtree(arm.utils.get_fp_build() + '/linux-build', onerror=remove_readonly)
+    if os.path.isdir(f'{arm.utils.get_fp_build()}/linux-build'):
+        shutil.rmtree(
+            f'{arm.utils.get_fp_build()}/linux-build', onerror=remove_readonly
+        )
     bpy.data.worlds['Arm'].arm_recompile = True
     assets.invalidate_compiled_data(self, context)
 
 def update_gapi_mac(self, context):
-    if os.path.isdir(arm.utils.get_fp_build() + '/osx-build'):
-        shutil.rmtree(arm.utils.get_fp_build() + '/osx-build', onerror=remove_readonly)
+    if os.path.isdir(f'{arm.utils.get_fp_build()}/osx-build'):
+        shutil.rmtree(f'{arm.utils.get_fp_build()}/osx-build', onerror=remove_readonly)
     bpy.data.worlds['Arm'].arm_recompile = True
     assets.invalidate_compiled_data(self, context)
 
 def update_gapi_android(self, context):
-    if os.path.isdir(arm.utils.get_fp_build() + '/android-build'):
-        shutil.rmtree(arm.utils.get_fp_build() + '/android-build', onerror=remove_readonly)
+    if os.path.isdir(f'{arm.utils.get_fp_build()}/android-build'):
+        shutil.rmtree(
+            f'{arm.utils.get_fp_build()}/android-build',
+            onerror=remove_readonly,
+        )
     bpy.data.worlds['Arm'].arm_recompile = True
     assets.invalidate_compiled_data(self, context)
 
 def update_gapi_ios(self, context):
-    if os.path.isdir(arm.utils.get_fp_build() + '/ios-build'):
-        shutil.rmtree(arm.utils.get_fp_build() + '/ios-build', onerror=remove_readonly)
+    if os.path.isdir(f'{arm.utils.get_fp_build()}/ios-build'):
+        shutil.rmtree(f'{arm.utils.get_fp_build()}/ios-build', onerror=remove_readonly)
     bpy.data.worlds['Arm'].arm_recompile = True
     assets.invalidate_compiled_data(self, context)
 
@@ -230,7 +238,7 @@ class ArmExporterListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         mdata = bpy.data.worlds['Arm']
         return len(mdata.arm_exporterlist) > 0
@@ -306,7 +314,7 @@ class ArmExporter_AndroidPermissionListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         mdata = bpy.data.worlds['Arm']
         return len(mdata.arm_exporter_android_permission_list) > 0
@@ -341,7 +349,7 @@ class ArmExporter_AndroidAbiListDeleteItem(bpy.types.Operator):
     bl_label = "Deletes an item"
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """ Enable if there's something in the list """
         mdata = bpy.data.worlds['Arm']
         return len(mdata.arm_exporter_android_abi_list) > 0
@@ -384,7 +392,7 @@ class ArmoryExporterOpenFolderButton(bpy.types.Operator):
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
         p = os.path.join(arm.utils.get_fp_build(), item.arm_project_target)
         if os.path.exists(p):
-            webbrowser.open('file://' + p)
+            webbrowser.open(f'file://{p}')
         return{'FINISHED'}
 
 class ArmExporterGpuProfileButton(bpy.types.Operator):
@@ -405,7 +413,7 @@ class ArmExporterGpuProfileButton(bpy.types.Operator):
             pbin = base + ext1
         elif os.path.exists(base + ext2):
             pbin = base + ext2
-        if pbin == '':
+        if not pbin:
             self.report({'ERROR'}, 'Publish project using Krom target first')
             return {'CANCELLED'}
         subprocess.Popen([p, pbin])

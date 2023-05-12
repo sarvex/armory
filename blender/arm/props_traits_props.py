@@ -109,7 +109,7 @@ class ArmTraitPropListItem(bpy.types.PropertyGroup):
 
                 val = [float(value) for value in val]
 
-            setattr(self, "value_" + self.type.lower(), val)
+            setattr(self, f"value_{self.type.lower()}", val)
         else:
             self.value_string = str(val)
 
@@ -121,18 +121,15 @@ class ArmTraitPropListItem(bpy.types.PropertyGroup):
         if self.type == "Bool":
             return self.value_bool
         if self.type in ("Vec2", "Vec3", "Vec4"):
-            return list(getattr(self, "value_" + self.type.lower()))
+            return list(getattr(self, f"value_{self.type.lower()}"))
         if self.type.endswith("Object"):
-            if self.value_object is not None:
-                return self.value_object.name
-            return ""
-
+            return self.value_object.name if self.value_object is not None else ""
         return self.value_string
 
 
 class ARM_UL_PropList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        item_value_ref = "value_" + item.type.lower()
+        item_value_ref = f"value_{item.type.lower()}"
         custom_icon = PROP_TYPE_ICONS[item.type]
 
         sp = layout.split(factor=0.3)
